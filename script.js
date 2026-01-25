@@ -1,4 +1,4 @@
-﻿document.getElementById('form-user-permohonan').addEventListener('submit', async (e) => {
+document.getElementById('form-user-permohonan').addEventListener('submit', async (e) => {
     e.preventDefault();
     console.log('ðŸš€ User form submitted');
 
@@ -177,6 +177,14 @@ const DataStore = {
         });
     }
 };
+
+// Listen for storage changes from other tabs
+window.addEventListener('storage', (e) => {
+    if (e.key === DataStore.key) {
+        console.log('🔄 Storan dikemaskini dari tab lain');
+        DataStore.notify();
+    }
+});
 
 // Initialize Data
 let allData = DataStore.get();
@@ -869,7 +877,52 @@ function toggleUserPermohonanFields() {
     checkUserTerms();
 }
 
-// ... checkUserTerms (unchanged logic, just context) ...
+function checkUserTerms() {
+    const jenisPermohonan = document.getElementById('user-jenis-permohonan-hidden')?.value || '';
+    const selections = jenisPermohonan.split(', ').filter(v => v);
+
+    const hasDewan = selections.includes('Dewan');
+    const hasPeralatan = selections.includes('Peralatan');
+
+    let allChecked = true;
+
+    // Check Dewan terma
+    if (hasDewan) {
+        const dewanTick = document.getElementById('user-terma-dewan-tick');
+        if (!dewanTick || !dewanTick.checked) {
+            allChecked = false;
+        }
+    }
+
+    // Check Peralatan terma
+    if (hasPeralatan) {
+        const peralatanTick = document.getElementById('user-terma-peralatan-tick');
+        if (!peralatanTick || !peralatanTick.checked) {
+            allChecked = false;
+        }
+    }
+
+    // Check General terma (WAJIB untuk semua)
+    const syaratTick = document.getElementById('user-terma-syarat-tick');
+    if (!syaratTick || !syaratTick.checked) {
+        allChecked = false;
+    }
+
+    const submitSection = document.getElementById('user-submit-section');
+    const warningDiv = document.getElementById('user-terma-warning');
+
+    if (allChecked && selections.length > 0) {
+        submitSection.classList.remove('hidden');
+        warningDiv.classList.add('hidden');
+    } else {
+        submitSection.classList.add('hidden');
+        if (selections.length > 0) {
+            warningDiv.classList.remove('hidden');
+        } else {
+            warningDiv.classList.add('hidden');
+        }
+    }
+}
 
 function updateUserSelectedItems() {
     const checkboxes = document.querySelectorAll('.user-item-checkbox:checked');
@@ -889,6 +942,7 @@ function updateUserSelectedItems() {
     document.getElementById('user-items-data-hidden').value = JSON.stringify(itemsData);
 
     checkUserDateOverlap();
+    checkUserTerms(); // Trigger validation to show/hide submit button
 }
 
 function checkUserDateOverlap() {
@@ -1040,6 +1094,73 @@ window.addEventListener('DOMContentLoaded', () => {
         showPage(lastPage);
     }
 });
+
+// Admin Form Selection Handlers
+function selectJenisPermohonan(value, button) {
+    const isActive = button.classList.contains('border-indigo-600');
+
+    if (isActive) {
+        button.classList.remove('border-indigo-600', 'bg-indigo-50');
+        button.classList.add('border-slate-200');
+    } else {
+        button.classList.remove('border-slate-200');
+        button.classList.add('border-indigo-600', 'bg-indigo-50');
+    }
+
+    const selectedButtons = document.querySelectorAll('.jenis-btn.border-indigo-600');
+    const selectedValues = Array.from(selectedButtons).map(btn => {
+        const span = btn.querySelector('span');
+        return span ? span.textContent.trim() : btn.textContent.trim();
+    });
+
+    document.getElementById('jenis-permohonan-hidden').value = selectedValues.join(', ');
+
+    togglePermohonanFields();
+}
+
+function togglePermohonanFields() {
+    const selectedValues = document.getElementById('jenis-permohonan-hidden')?.value || '';
+    const selections = selectedValues.split(', ').filter(v => v);
+
+    const fieldSenariItem = document.getElementById('field-senarai-item');
+    const hasPeralatan = selections.includes('Peralatan');
+    const hasDewan = selections.includes('Dewan');
+
+    // Show/hide Peralatan fields
+    if (hasPeralatan && fieldSenariItem) {
+        fieldSenariItem.classList.remove('hidden');
+    } else if (fieldSenariItem) {
+        fieldSenariItem.classList.add('hidden');
+    }
+
+    // Toggle Terma & Syarat sections
+    const termaDewan = document.getElementById('admin-terma-dewan');
+    const termaPeralatan = document.getElementById('admin-terma-peralatan');
+
+    if (termaDewan) {
+        if (hasDewan) {
+            termaDewan.classList.remove('hidden');
+        } else {
+            termaDewan.classList.add('hidden');
+            const tick = document.getElementById('admin-terma-dewan-tick');
+            if (tick) tick.checked = false;
+        }
+    }
+
+    if (termaPeralatan) {
+        if (hasPeralatan) {
+            termaPeralatan.classList.remove('hidden');
+        } else {
+            termaPeralatan.classList.add('hidden');
+            const tick = document.getElementById('admin-terma-peralatan-tick');
+            if (tick) tick.checked = false;
+        }
+    }
+
+    // Trigger validation
+    if (typeof checkAdminTerms === 'function') checkAdminTerms();
+    if (typeof checkDateOverlap === 'function') checkDateOverlap();
+}
 
 function checkAdminTerms() {
     const jenisPermohonan = document.getElementById('jenis-permohonan-hidden')?.value || '';
