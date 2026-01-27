@@ -29,33 +29,45 @@ document.getElementById('form-user-permohonan').addEventListener('submit', async
 
     console.log('ðŸ“¦ User data to save:', data);
 
-    const result = await DataStore.add(data);
+    try {
+        const result = await DataStore.add(data);
 
-    if (result.isOk) {
-        // Success message with animation
-        btn.innerHTML = '<span class="flex items-center justify-center gap-3"><svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>âœ… Berjaya Dihantar!</span>';
-        btn.classList.remove('from-purple-600', 'to-indigo-600');
-        btn.classList.add('from-green-600', 'to-emerald-600');
+        if (result.isOk) {
+            // Success message with animation
+            btn.innerHTML = '<span class="flex items-center justify-center gap-3"><svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>✅ Berjaya Dihantar!</span>';
+            btn.classList.remove('from-purple-600', 'to-indigo-600');
+            btn.classList.add('from-green-600', 'to-emerald-600');
 
-        setTimeout(() => {
-            closeUserForm();
-            document.getElementById('form-user-permohonan').reset();
-            document.querySelectorAll('.user-jenis-btn').forEach(b => {
-                b.classList.remove('border-purple-600', 'bg-purple-50');
-                b.classList.add('border-slate-200');
-            });
-            document.getElementById('user-submit-section').classList.add('hidden');
-            btn.innerHTML = originalHTML;
-            btn.disabled = false;
-            btn.classList.remove('from-green-600', 'to-emerald-600');
-            btn.classList.add('from-purple-600', 'to-indigo-600');
+            setTimeout(() => {
+                playSuccessSound();
+                // New logic: Hide form, show success state
+                document.getElementById('form-user-permohonan').classList.add('hidden');
+                document.getElementById('user-success-container').classList.remove('hidden');
 
-            // Show success toast
-            showToast('âœ… Permohonan anda telah berjaya dihantar!');
-        }, 2000);
-    } else {
-        console.error('âŒ Error:', result.error);
-        btn.innerHTML = '<span class="flex items-center justify-center gap-3">âŒ Gagal Dihantar</span>';
+                // Still reset form for next use
+                document.getElementById('form-user-permohonan').reset();
+                document.querySelectorAll('.user-jenis-btn').forEach(b => {
+                    b.classList.remove('border-purple-600', 'bg-purple-50');
+                    b.classList.add('border-slate-200');
+                });
+                document.getElementById('user-submit-section').classList.add('hidden');
+
+                // Critical: Reset UI logic states
+                toggleUserPermohonanFields();
+                updateUserItemDropdown();
+
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+                btn.classList.remove('from-green-600', 'to-emerald-600');
+                btn.classList.add('from-purple-600', 'to-indigo-600');
+            }, 1500);
+
+        } else {
+            throw new Error(result.error || 'Unknown error');
+        }
+    } catch (err) {
+        console.error('❌ Submit Error:', err);
+        btn.innerHTML = '<span class="flex items-center justify-center gap-3">❌ Gagal Dihantar</span>';
         btn.classList.remove('from-purple-600', 'to-indigo-600');
         btn.classList.add('from-red-600', 'to-red-700');
 
@@ -130,8 +142,13 @@ const ADMIN_PASSWORD = 'admin123';
 const DataStore = {
     key: 'dewanData',
     get: function () {
-        const data = localStorage.getItem(this.key);
-        return data ? JSON.parse(data) : [];
+        try {
+            const data = localStorage.getItem(this.key);
+            return data ? JSON.parse(data) : [];
+        } catch (e) {
+            console.error('❌ DataStore.get Error:', e);
+            return [];
+        }
     },
     save: function (data) {
         localStorage.setItem(this.key, JSON.stringify(data));
@@ -157,17 +174,30 @@ const DataStore = {
         return Promise.resolve({ isOk: true });
     },
     notify: function () {
-        // Update global var and UI
+        // Update global var
         allData = this.get();
-        console.log('🔄 DataStore Notify: refreshing UI with', allData.length, 'records');
-        if (typeof updateDashboard === 'function') updateDashboard();
-        if (typeof renderPermohonan === 'function') renderPermohonan();
-        if (typeof renderKategori === 'function') renderKategori();
-        if (typeof renderPeralatan === 'function') renderPeralatan();
-        if (typeof updateItemDropdown === 'function') updateItemDropdown();
-        if (typeof updateKategoriDropdown === 'function') updateKategoriDropdown();
-        if (typeof updateUserItemDropdown === 'function') updateUserItemDropdown();
-        if (typeof renderLaporan === 'function') renderLaporan();
+        console.log('🔄 DataStore Notify: refreshing UI');
+
+        // Bulletproof UI updates - individual crashes won't stop others
+        const tasks = [
+            { name: 'Dashboard', fn: updateDashboard },
+            { name: 'Permohonan', fn: renderPermohonan },
+            { name: 'Kategori', fn: renderKategori },
+            { name: 'Peralatan', fn: renderPeralatan },
+            { name: 'Item Dropdown', fn: updateItemDropdown },
+            { name: 'Kategori Dropdown', fn: updateKategoriDropdown },
+            { name: 'User Item Dropdown', fn: updateUserItemDropdown },
+            { name: 'Laporan', fn: renderLaporan },
+            { name: 'Notifications', fn: updateNotifications }
+        ];
+
+        tasks.forEach(t => {
+            try {
+                if (typeof t.fn === 'function') t.fn();
+            } catch (e) {
+                console.warn(`⚠️ UI Task [${t.name}] failed:`, e.message);
+            }
+        });
     },
     getByDateRange: function (startDate, endDate) {
         return this.get().filter(d => {
@@ -246,47 +276,69 @@ if (window.elementSdk) {
 
 // Check Login & Page State on Load
 window.addEventListener('DOMContentLoaded', () => {
-    // Refresh Data UI
-    DataStore.notify();
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const isUserMode = urlParams.get('user') === 'true' || window.location.hash.includes('user=true');
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const isUserMode = urlParams.get('user') === 'true';
+        // 1. Apply UI Visuals immediately
+        applyBgSettings();
+        applyLogoSettings();
 
-    if (isUserMode) {
-        // User Mode: Hide Login & Admin App, Show User Form ONLY
-        const loginPage = document.getElementById('login-page');
-        const appPage = document.getElementById('app');
-        if (loginPage) loginPage.classList.add('hidden');
-        if (appPage) appPage.classList.add('hidden');
+        if (isUserMode) {
+            // User Mode: Hide Login & Admin App, Show User Form ONLY
+            const loginPage = document.getElementById('login-page');
+            const appPage = document.getElementById('app');
+            if (loginPage) loginPage.classList.add('hidden');
+            if (appPage) appPage.classList.add('hidden');
 
-        // Open user form and prevent closing
-        const userModal = document.getElementById('modal-user-form');
-        if (userModal) {
-            userModal.classList.remove('hidden');
-            // Hide close button in user mode to force focus on form
-            const closeBtn = userModal.querySelector('button[onclick="closeUserForm()"]');
-            if (closeBtn) closeBtn.style.display = 'none';
-        }
+            const userModal = document.getElementById('modal-user-form');
+            if (userModal) {
+                userModal.classList.remove('hidden');
+                const closeBtn = userModal.querySelector('button[onclick="closeUserForm()"]');
+                if (closeBtn) closeBtn.style.display = 'none';
+            }
+            document.body.classList.add('user-mode');
 
-        // Add special class for user mode styling if needed
-        document.body.classList.add('user-mode');
+            // Trigger data update for user form
+            DataStore.notify();
 
-    } else {
-        // Admin Logic
-        const storedLogin = localStorage.getItem('isLoggedIn');
-        if (storedLogin === 'true') {
-            // Admin Mode (Logged In)
-            isLoggedIn = true;
-            document.getElementById('login-page').classList.add('hidden');
-            document.getElementById('app').classList.remove('hidden');
-
-            const lastPage = localStorage.getItem('lastPage') || 'dashboard';
-            showPage(lastPage);
         } else {
-            // Not Logged In - Show Login Page
-            document.getElementById('login-page').classList.remove('hidden');
-            document.getElementById('app').classList.add('hidden');
+            // Admin Logic
+            const storedLogin = localStorage.getItem('isLoggedIn');
+            if (storedLogin === 'true') {
+                isLoggedIn = true;
+                document.getElementById('login-page').classList.add('hidden');
+                document.getElementById('app').classList.remove('hidden');
+
+                // Priority: URL Hash > LocalStorage > Default
+                const hashPage = window.location.hash.replace('#', '');
+                const storedPage = localStorage.getItem('lastPage');
+                const validPages = ['dashboard', 'permohonan', 'peralatan', 'tetapan', 'laporan'];
+
+                let pageToLoad = 'dashboard';
+                if (validPages.includes(hashPage)) {
+                    pageToLoad = hashPage;
+                } else if (validPages.includes(storedPage)) {
+                    pageToLoad = storedPage;
+                }
+
+                showPage(pageToLoad);
+
+                // Trigger data update only after showing page
+                DataStore.notify();
+            } else {
+                // Not Logged In - Show Login Page
+                document.getElementById('login-page').classList.remove('hidden');
+                document.getElementById('app').classList.add('hidden');
+
+                // Clear hash if not logged in to avoid confusion
+                if (window.location.hash) {
+                    history.replaceState(null, null, ' ');
+                }
+            }
         }
+    } catch (err) {
+        console.error('❌ Critical App Init Error:', err);
     }
 });
 
@@ -350,9 +402,25 @@ function logout() {
     document.getElementById('password').value = '';
 }
 
-// Helper functions
+// Helper functions - Improved with Global Filtering
 function getPermohonan() {
-    return allData.filter(d => d.type === 'permohonan');
+    const startVal = document.getElementById('filter-tarikh-mula')?.value;
+    const endVal = document.getElementById('filter-tarikh-akhir')?.value;
+
+    let data = allData.filter(d => d.type === 'permohonan');
+
+    if (startVal || endVal) {
+        const start = startVal ? new Date(startVal) : new Date(0);
+        const end = endVal ? new Date(endVal) : new Date(8640000000000000);
+        if (endVal) end.setHours(23, 59, 59, 999);
+
+        data = data.filter(d => {
+            const appDate = new Date(d.tarikhMulaPinjam);
+            return appDate >= start && appDate <= end;
+        });
+    }
+
+    return data;
 }
 
 function getKategori() {
@@ -377,16 +445,55 @@ function showPage(page) {
     // Save state if logged in
     if (isLoggedIn) {
         localStorage.setItem('lastPage', page);
+        // Only update hash if it's different to avoid loops
+        if (window.location.hash !== '#' + page) {
+            window.location.hash = page;
+        }
+    }
+
+    // Close sidebar on mobile after selection
+    const sidebar = document.getElementById('sidebar');
+    if (window.innerWidth < 768 && sidebar.classList.contains('translate-x-0')) {
+        toggleSidebar();
     }
 }
 
-// Modal functions
+// Handle hash changes (back/forward browser buttons)
+window.addEventListener('hashchange', () => {
+    if (!isLoggedIn) return;
+    const page = window.location.hash.replace('#', '');
+    const validPages = ['dashboard', 'permohonan', 'peralatan', 'tetapan', 'laporan'];
+    if (validPages.includes(page)) {
+        showPage(page);
+    }
+});
+
+// Modal functions with refined background blur
 function openModal(id) {
     document.getElementById(id).classList.remove('hidden');
+    // Blur everything behind
+    const app = document.getElementById('app');
+    const login = document.getElementById('login-page');
+    const globalBg = document.getElementById('global-portal-bg');
+
+    if (app) app.classList.add('modal-blur');
+    if (login) login.classList.add('modal-blur');
+    if (globalBg) globalBg.classList.add('modal-blur');
 }
 
 function closeModal(id) {
     document.getElementById(id).classList.add('hidden');
+    const app = document.getElementById('app');
+    const login = document.getElementById('login-page');
+    const globalBg = document.getElementById('global-portal-bg');
+
+    // Safety: Only remove blur if no other modals are visible
+    const visibleModals = document.querySelectorAll('.fixed[id^=\"modal-\"]:not(.hidden)');
+    if (visibleModals.length === 0) {
+        if (app) app.classList.remove('modal-blur');
+        if (login) login.classList.remove('modal-blur');
+        if (globalBg) globalBg.classList.remove('modal-blur');
+    }
 }
 
 function showToast(message) {
@@ -394,6 +501,22 @@ function showToast(message) {
     document.getElementById('toast-message').textContent = message;
     toast.classList.remove('hidden');
     setTimeout(() => toast.classList.add('hidden'), 3000);
+}
+
+// Mobile sidebar toggle
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+
+    if (sidebar.classList.contains('-translate-x-full')) {
+        sidebar.classList.remove('-translate-x-full');
+        sidebar.classList.add('translate-x-0');
+        overlay.classList.remove('hidden');
+    } else {
+        sidebar.classList.add('-translate-x-full');
+        sidebar.classList.remove('translate-x-0');
+        overlay.classList.add('hidden');
+    }
 }
 
 // Dashboard update
@@ -428,6 +551,77 @@ function updateDashboard() {
           </div>
         `).join('');
     }
+}
+
+// Update notification badge
+let lastNotificationCount = 0;
+function updateNotifications() {
+    const permohonan = allData.filter(d => d.type === 'permohonan' && d.status === 'Dalam Proses');
+    const badge = document.getElementById('notification-badge');
+    const countEl = document.getElementById('notification-count');
+
+    if (!badge || !countEl) return;
+
+    const currentCount = permohonan.length;
+
+    if (currentCount > 0) {
+        countEl.textContent = currentCount;
+        badge.classList.remove('hidden');
+
+        // Play notification sound if count increased
+        if (currentCount > lastNotificationCount) {
+            playNotificationSound();
+        }
+        lastNotificationCount = currentCount;
+
+        // Add a little bounce animation when count changes
+        badge.classList.remove('animate-bounce');
+        void badge.offsetWidth; // trigger reflow
+        badge.classList.add('animate-bounce');
+        setTimeout(() => badge.classList.remove('animate-bounce'), 1000);
+    } else {
+        badge.classList.add('hidden');
+        lastNotificationCount = 0;
+    }
+}
+
+// Sound Effects Logic (Digital Synthesis)
+function playSuccessSound() {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+    oscillator.frequency.exponentialRampToValueAtTime(1046.50, audioCtx.currentTime + 0.1); // C6
+
+    gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    oscillator.start();
+    oscillator.stop(audioCtx.currentTime + 0.5);
+}
+
+function playNotificationSound() {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+
+    oscillator.type = 'triangle';
+    oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
+    oscillator.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.2); // A4
+
+    gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    oscillator.start();
+    oscillator.stop(audioCtx.currentTime + 0.3);
 }
 
 function getStatusClass(status) {
@@ -693,7 +887,7 @@ function checkDateOverlap() {
 
             if (startDate < existingEnd && endDate > existingStart) {
                 hasConflict = true;
-                conflictMessages.push(`🏛️ Dewan telah ditempah pada ${formatDate(permohonan.tarikhMulaPinjam)} - ${formatDate(permohonan.tarikhPulang)}. Sila pilih tarikh lain.`);
+                conflictMessages.push(`Dewan telah ditempah pada ${formatDate(permohonan.tarikhMulaPinjam)} - ${formatDate(permohonan.tarikhPulang)}. Sila pilih tarikh lain.`);
                 break;
             }
         }
@@ -701,8 +895,6 @@ function checkDateOverlap() {
 
     // Check Peralatan availability (Simple Check: if item in use)
     if (hasPeralatan && !hasConflict) {
-        // For admin, we might need to know WHICH items are selected.
-        // Currently admin form has checkboxes in #item-dipinjam-container
         const selectedItemsData = document.getElementById('items-data-hidden').value;
         if (selectedItemsData) {
             const itemsData = JSON.parse(selectedItemsData);
@@ -712,7 +904,6 @@ function checkDateOverlap() {
                 if (!peralatan) continue;
 
                 let unitsInUse = 0;
-                // Sum usages in other active applications
                 const peralatanPermohonan = allData.filter(d =>
                     d.type === 'permohonan' &&
                     d.itemsData &&
@@ -724,10 +915,14 @@ function checkDateOverlap() {
                     const existingEnd = new Date(permohonan.tarikhPulang);
 
                     if (startDate < existingEnd && endDate > existingStart) {
-                        const permohonanItems = JSON.parse(permohonan.itemsData);
-                        const usedItem = permohonanItems.find(i => i.id === item.id);
-                        if (usedItem) {
-                            unitsInUse += usedItem.qty;
+                        try {
+                            const permohonanItems = JSON.parse(permohonan.itemsData);
+                            const usedItem = permohonanItems.find(i => i.id === item.id);
+                            if (usedItem) {
+                                unitsInUse += usedItem.qty;
+                            }
+                        } catch (e) {
+                            console.error('Error parsing itemsData:', e);
                         }
                     }
                 }
@@ -737,7 +932,6 @@ function checkDateOverlap() {
 
                 if (item.qty > availableDuringPeriod) {
                     hasConflict = true;
-                    // Fix: Use correct item name
                     conflictMessages.push(`📦 ${item.name} tidak mencukupi (Tersedia: ${availableDuringPeriod}).`);
                 }
             }
@@ -749,6 +943,111 @@ function checkDateOverlap() {
         errorDiv.classList.remove('hidden');
     } else {
         errorDiv.classList.add('hidden');
+    }
+}
+
+// User Form Date Overlap & Availability Check
+function checkUserDateOverlap() {
+    const tarikhMula = document.getElementById('user-tarikh-mula').value;
+    const tarikhPulang = document.getElementById('user-tarikh-pulang').value;
+    const jenisPermohonan = document.getElementById('user-jenis-permohonan-hidden')?.value || '';
+    const selections = jenisPermohonan.split(', ').filter(v => v);
+
+    const errorDiv = document.getElementById('user-date-overlap-error');
+    const errorMessage = document.getElementById('user-date-overlap-message');
+    const submitBtn = document.getElementById('btn-submit-user-permohonan');
+
+    // Update item list based on new potential dates
+    if (selections.includes('Peralatan')) {
+        updateUserItemDropdown();
+    }
+
+    if (!tarikhMula || !tarikhPulang || selections.length === 0) {
+        errorDiv.classList.add('hidden');
+        if (submitBtn) submitBtn.disabled = false;
+        return;
+    }
+
+    const startDate = new Date(tarikhMula);
+    const endDate = new Date(tarikhPulang);
+
+    if (startDate >= endDate) {
+        errorMessage.innerHTML = '⚠️ Tarikh mula mestilah sebelum tarikh tamat.';
+        errorDiv.classList.remove('hidden');
+        if (submitBtn) submitBtn.disabled = true;
+        return;
+    }
+
+    let hasConflict = false;
+    let conflictMessages = [];
+
+    // 1. Check Dewan Conflicts
+    if (selections.includes('Dewan')) {
+        const matchingPermohonan = allData.filter(d =>
+            d.type === 'permohonan' &&
+            d.jenisPermohonan &&
+            d.jenisPermohonan.includes('Dewan') &&
+            (d.status === 'Dalam Proses' || d.status === 'Diluluskan' || d.status === 'Selesai')
+        );
+
+        for (const p of matchingPermohonan) {
+            const existingStart = new Date(p.tarikhMulaPinjam);
+            const existingEnd = new Date(p.tarikhPulang);
+
+            if (startDate < existingEnd && endDate > existingStart) {
+                hasConflict = true;
+                conflictMessages.push(`🏛️ Dewan telah ditempah pada ${formatDate(p.tarikhMulaPinjam)} - ${formatDate(p.tarikhPulang)}. Sila pilih tarikh/waktu lain.`);
+                break;
+            }
+        }
+    }
+
+    // 2. Check Peralatan Conflicts
+    const itemsDataStr = document.getElementById('user-items-data-hidden').value;
+    if (selections.includes('Peralatan') && itemsDataStr) {
+        try {
+            const selectedItems = JSON.parse(itemsDataStr);
+            for (const item of selectedItems) {
+                const totalStock = allData.find(d => d.type === 'peralatan' && d.__backendId === item.id)?.kuantiti || 0;
+
+                // Calculate how many in use during this period
+                let unitsInUse = 0;
+                const relevantRequests = allData.filter(d =>
+                    d.type === 'permohonan' &&
+                    (d.status === 'Dalam Proses' || d.status === 'Diluluskan') &&
+                    d.itemsData
+                );
+
+                for (const req of relevantRequests) {
+                    const reqStart = new Date(req.tarikhMulaPinjam);
+                    const reqEnd = new Date(req.tarikhPulang);
+
+                    if (startDate < reqEnd && endDate > reqStart) {
+                        const reqItems = JSON.parse(req.itemsData);
+                        const match = reqItems.find(i => i.id === item.id);
+                        if (match) unitsInUse += match.qty;
+                    }
+                }
+
+                if (item.qty > (totalStock - unitsInUse)) {
+                    hasConflict = true;
+                    conflictMessages.push(`📦 <strong>${item.name}</strong> tidak mencukupi untuk tempoh ini. (Baki tersedia: ${totalStock - unitsInUse})`);
+                }
+            }
+        } catch (e) { console.error(e); }
+    }
+
+    // Check for individual item quantity errors
+    const qtyErrors = document.querySelectorAll('[id^="user-qty-error-"]:not(.hidden)');
+    if (qtyErrors.length > 0) hasConflict = true;
+
+    if (hasConflict) {
+        errorMessage.innerHTML = conflictMessages.join('<br>');
+        errorDiv.classList.remove('hidden');
+        if (submitBtn) submitBtn.disabled = true;
+    } else {
+        errorDiv.classList.add('hidden');
+        if (submitBtn) submitBtn.disabled = false;
     }
 }
 
@@ -767,6 +1066,8 @@ function updateUserItemDropdown() {
 
     const peralatan = getPeralatan();
     const kategori = getKategori();
+    const tarikhMula = document.getElementById('user-tarikh-mula').value;
+    const tarikhPulang = document.getElementById('user-tarikh-pulang').value;
 
     if (peralatan.length === 0) {
         container.innerHTML = '<p class="text-slate-400 text-sm text-center py-8">Tiada peralatan tersedia</p>';
@@ -775,26 +1076,129 @@ function updateUserItemDropdown() {
 
     container.innerHTML = peralatan.map(p => {
         const kat = kategori.find(k => k.__backendId === p.kategoriId);
-        const tersedia = p.kuantitiTersedia !== undefined ? p.kuantitiTersedia : p.kuantiti;
-        const isAvailable = tersedia > 0;
+        let unitsInUse = 0;
+
+        // Calculate availability if dates are selected
+        if (tarikhMula && tarikhPulang) {
+            const start = new Date(tarikhMula);
+            const end = new Date(tarikhPulang);
+            const activePermohonan = allData.filter(d =>
+                d.type === 'permohonan' &&
+                (d.status === 'Dalam Proses' || d.status === 'Diluluskan') &&
+                d.itemsData
+            );
+
+            activePermohonan.forEach(req => {
+                const reqStart = new Date(req.tarikhMulaPinjam);
+                const reqEnd = new Date(req.tarikhPulang);
+                if (start < reqEnd && end > reqStart) {
+                    try {
+                        const items = JSON.parse(req.itemsData);
+                        const match = items.find(i => i.id === p.__backendId);
+                        if (match) unitsInUse += match.qty;
+                    } catch (e) { }
+                }
+            });
+        }
+
+        const totalStock = p.kuantiti || 0;
+        const available = totalStock - unitsInUse;
+        const isAvailable = available > 0;
+        const statusColor = isAvailable ? 'text-green-600' : 'text-red-600';
+
         return `
-          <div class="border-2 border-slate-200 rounded-xl p-4 bg-white hover:border-purple-300 transition-colors">
-            <label class="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" value="${p.namaPeralatan}" data-id="${p.__backendId}" onchange="updateUserSelectedItems()" class="user-item-checkbox w-5 h-5 text-purple-600 border-slate-300 rounded focus:ring-2 focus:ring-purple-500" ${!isAvailable ? 'disabled' : ''}>
+          <div class="border-2 border-slate-200 rounded-xl p-4 bg-white hover:border-purple-300 transition-colors ${!isAvailable ? 'opacity-60 bg-slate-50' : ''}">
+            <label class="flex items-center gap-3 ${isAvailable ? 'cursor-pointer' : 'cursor-not-allowed'}">
+              <input type="checkbox" value="${p.namaPeralatan}" data-id="${p.__backendId}" 
+                onchange="toggleUserQtyInput('${p.__backendId}')" 
+                class="user-item-checkbox w-5 h-5 text-purple-600 border-slate-300 rounded focus:ring-2 focus:ring-purple-500" 
+                ${!isAvailable ? 'disabled' : ''}>
               <div class="flex-1">
                 <span class="text-slate-800 font-semibold">${p.namaPeralatan}</span>
                 <span class="text-slate-500 text-sm ml-2">(${kat ? kat.nama : '-'})</span>
-                <span class="block text-xs ${isAvailable ? 'text-green-600' : 'text-red-600'} font-bold mt-1">Stok: ${tersedia} unit</span>
+                <span class="block text-xs ${statusColor} font-bold mt-1">
+                    ${isAvailable ? `Tersedia: ${available} unit` : 'Tiada Stok Tersedia'}
+                </span>
               </div>
             </label>
+            <div id="user-qty-input-${p.__backendId}" class="hidden mt-3 pl-8">
+                <label class="block text-xs font-medium text-slate-700 mb-1">Kuantiti Dipinjam (Maks: ${available})</label>
+                <input type="number" id="user-qty-${p.__backendId}" min="1" max="${available}" value="1" 
+                    oninput="validateUserQty('${p.__backendId}', ${available})" 
+                    class="w-full px-3 py-2 border-2 border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+                <p id="user-qty-error-${p.__backendId}" class="hidden text-[10px] text-red-600 mt-1 font-bold animate-pulse">
+                    ⚠️ Kuantiti melebihi baki stok yang tersedia!
+                </p>
+            </div>
           </div>
         `;
     }).join('');
 }
 
+function toggleUserQtyInput(id) {
+    const cb = document.querySelector(`.user-item-checkbox[data-id="${id}"]`);
+    const inputDiv = document.getElementById(`user-qty-input-${id}`);
+    if (cb.checked) {
+        inputDiv.classList.remove('hidden');
+    } else {
+        inputDiv.classList.add('hidden');
+    }
+    updateUserSelectedItems();
+}
+
+function validateUserQty(id, max) {
+    const input = document.getElementById(`user-qty-${id}`);
+    const error = document.getElementById(`user-qty-error-${id}`);
+    let val = parseInt(input.value) || 0;
+
+    if (val > max) {
+        input.classList.add('border-red-500', 'bg-red-50', 'text-red-900');
+        input.classList.remove('border-slate-200', 'bg-white');
+        error.classList.remove('hidden');
+    } else {
+        input.classList.remove('border-red-500', 'bg-red-50', 'text-red-900');
+        input.classList.add('border-slate-200', 'bg-white');
+        error.classList.add('hidden');
+        if (val < 1 && input.value !== "") input.value = 1;
+    }
+    updateUserSelectedItems();
+}
+
 // User form functions
 function closeUserForm() {
-    closeModal('modal-user-form');
+    const urlParams = new URLSearchParams(window.location.search);
+    const isUserMode = urlParams.get('user') === 'true' || window.location.hash.includes('user=true');
+
+    if (isUserMode) {
+        // Attempt to close the tab
+        window.close();
+        // Fallback message if browser blocks window.close()
+        setTimeout(() => {
+            alert("Sila tutup tab ini secara manual.");
+        }, 100);
+    } else {
+        closeModal('modal-user-form');
+        // Ensure form is visible for next time (even if it was closed from success screen)
+        setTimeout(() => {
+            document.getElementById('form-user-permohonan').classList.remove('hidden');
+            document.getElementById('user-success-container').classList.add('hidden');
+        }, 500);
+    }
+}
+
+function resetUserFormForNew() {
+    // Hide success, show form
+    document.getElementById('user-success-container').classList.add('hidden');
+    document.getElementById('form-user-permohonan').classList.remove('hidden');
+
+    // Clear everything
+    document.getElementById('form-user-permohonan').reset();
+    document.querySelectorAll('.user-jenis-btn').forEach(b => {
+        b.classList.remove('border-purple-600', 'bg-purple-50');
+        b.classList.add('border-slate-200');
+    });
+    toggleUserPermohonanFields();
+    updateUserItemDropdown();
 }
 
 function selectUserJenisPermohonan(value, button) {
@@ -932,9 +1336,10 @@ function updateUserSelectedItems() {
     checkboxes.forEach(cb => {
         const id = cb.dataset.id;
         const name = cb.value;
-        const qty = 1; // Default to 1 as per requirement
+        const qtyInput = document.getElementById(`user-qty-${id}`);
+        const qty = qtyInput ? parseInt(qtyInput.value) || 1 : 1;
 
-        selectedItems.push(`${name}`);
+        selectedItems.push(`${name} (${qty} unit)`);
         itemsData.push({ id, name, qty });
     });
 
@@ -942,7 +1347,6 @@ function updateUserSelectedItems() {
     document.getElementById('user-items-data-hidden').value = JSON.stringify(itemsData);
 
     checkUserDateOverlap();
-    checkUserTerms(); // Trigger validation to show/hide submit button
 }
 
 function checkUserDateOverlap() {
@@ -1038,7 +1442,8 @@ function checkUserDateOverlap() {
 
 // Sharelink functions
 function showSharelinkInfo() {
-    const currentURL = window.location.href.split('?')[0]; // Clean URL base
+    // Current URL minus anything from ? or # onwards
+    const currentURL = window.location.origin + window.location.pathname;
     const sharelinkURL = `${currentURL}?user=true`;
     document.getElementById('sharelink-url').value = sharelinkURL;
     openModal('modal-sharelink');
@@ -1375,91 +1780,139 @@ document.getElementById('form-peralatan').addEventListener('submit', async (e) =
 
 // --- LAPORAN & REPORTING ---
 function renderLaporan() {
-    // 1. Calculate & Render Stats
-    const permohonan = getPermohonan();
-
-    // Status Chart/Stats (Simple List for now as no Chart.js yet)
-    const statusCounts = permohonan.reduce((acc, curr) => {
-        acc[curr.status] = (acc[curr.status] || 0) + 1;
-        return acc;
-    }, {});
-
-    const chartStatusDiv = document.getElementById('chart-status');
-    if (Object.keys(statusCounts).length === 0) {
-        chartStatusDiv.innerHTML = '<p class="text-slate-400 text-center py-8">Tiada data</p>';
-    } else {
-        chartStatusDiv.innerHTML = Object.entries(statusCounts).map(([status, count]) => `
-            <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg mb-2">
-                <span class="font-medium text-slate-700">${status}</span>
-                <span class="font-bold text-indigo-600">${count}</span>
-            </div>
-        `).join('');
-    }
-
-    // 2. Equipment Usage Stats
-    // Flatten all items requested from all applications
-    const itemUsage = {}; // { itemName: count }
-
-    permohonan.forEach(p => {
-        if (p.itemsData) {
-            try {
-                const items = JSON.parse(p.itemsData);
-                items.forEach(item => {
-                    itemUsage[item.name] = (itemUsage[item.name] || 0) + (item.qty || 1);
-                });
-            } catch (e) { }
-        } else if (p.items && p.items !== 'Dewan') {
-            // Fallback for older/simpler data
-            itemUsage[p.items] = (itemUsage[p.items] || 0) + 1;
+    try {
+        const toolbar = document.getElementById('editor-toolbar');
+        if (toolbar && !toolbar.classList.contains('hidden')) {
+            console.log('📝 Word Mode active, skipping update.');
+            return;
         }
-    });
 
-    const chartPeralatanDiv = document.getElementById('chart-peralatan');
-    const sortedUsage = Object.entries(itemUsage).sort((a, b) => b[1] - a[1]).slice(0, 5); // Top 5
+        const startEl = document.getElementById('filter-tarikh-mula');
+        const endEl = document.getElementById('filter-tarikh-akhir');
+        if (!startEl || !endEl) return;
 
-    if (sortedUsage.length === 0) {
-        chartPeralatanDiv.innerHTML = '<p class="text-slate-400 text-center py-8">Tiada penggunaan peralatan</p>';
-    } else {
-        chartPeralatanDiv.innerHTML = sortedUsage.map(([name, count]) => `
-            <div class="mb-3">
-                <div class="flex justify-between text-sm mb-1">
-                    <span class="font-medium text-slate-700">${name}</span>
-                    <span class="font-bold text-purple-600">${count} kali</span>
-                </div>
-                <div class="w-full bg-slate-100 rounded-full h-2.5">
-                    <div class="bg-purple-600 h-2.5 rounded-full" style="width: 10%"></div>
-                </div>
-            </div>
-        `).join('');
+        if (!startEl.value && !endEl.value) {
+            const now = new Date();
+            startEl.value = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+            endEl.value = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+        }
+
+        const permohonan = getPermohonan();
+        const statusCounts = permohonan.reduce((acc, curr) => {
+            acc[curr.status] = (acc[curr.status] || 0) + 1;
+            return acc;
+        }, {});
+
+        const chartStatusDiv = document.getElementById('chart-status');
+        if (chartStatusDiv) {
+            if (Object.keys(statusCounts).length === 0) {
+                chartStatusDiv.innerHTML = '<p class="text-white/40 text-center py-8">Tiada data untuk tempoh ini</p>';
+            } else {
+                chartStatusDiv.innerHTML = Object.entries(statusCounts).map(([status, count]) => `
+                    <div class="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/10 mb-3">
+                        <span class="font-bold text-slate-300 text-xs uppercase tracking-wider">${status}</span>
+                        <span class="font-black text-white text-xl">${count}</span>
+                    </div>
+                `).join('');
+            }
+        }
+
+        const itemUsage = {};
+        permohonan.forEach(p => {
+            if (p.itemsData) {
+                try {
+                    const items = JSON.parse(p.itemsData);
+                    items.forEach(item => { itemUsage[item.name] = (itemUsage[item.name] || 0) + (parseInt(item.qty) || 1); });
+                } catch (e) { }
+            } else if (p.items && p.items !== 'Dewan') {
+                itemUsage[p.items] = (itemUsage[p.items] || 0) + 1;
+            }
+        });
+
+        const sortedUsage = Object.entries(itemUsage).sort((a, b) => b[1] - a[1]).slice(0, 5);
+        const maxUsage = sortedUsage.length > 0 ? sortedUsage[0][1] : 1;
+        const chartPeralatanDiv = document.getElementById('chart-peralatan');
+
+        if (chartPeralatanDiv) {
+            if (sortedUsage.length === 0) {
+                chartPeralatanDiv.innerHTML = '<p class="text-slate-400 text-center py-4 text-xs italic">Tiada penggunaan peralatan</p>';
+            } else {
+                chartPeralatanDiv.innerHTML = sortedUsage.map(([name, count]) => {
+                    const perc = Math.max(10, (count / maxUsage) * 100);
+                    return `
+                    <div class="mb-4">
+                        <div class="flex justify-between items-center text-[11px] font-bold mb-1.5">
+                            <span class="text-slate-700">${name}</span>
+                            <span class="text-indigo-600">${count} Unit</span>
+                        </div>
+                        <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                            <div class="bg-indigo-600 h-full rounded-full transition-all duration-1000" style="width: ${perc}%"></div>
+                        </div>
+                    </div>`
+                }).join('');
+            }
+        }
+
+        const activeStatusEl = document.getElementById('report-active-status');
+        const topItemEl = document.getElementById('report-top-item');
+        const approvalRateEl = document.getElementById('report-approval-rate');
+
+        if (activeStatusEl) activeStatusEl.textContent = permohonan.length > 10 ? 'Sangat Tinggi' : permohonan.length > 0 ? 'Aktif' : 'Pasif';
+        if (topItemEl) topItemEl.textContent = sortedUsage.length > 0 ? sortedUsage[0][0] : '-';
+        if (approvalRateEl) {
+            const approved = permohonan.filter(p => p.status === 'Diluluskan').length;
+            const rate = permohonan.length > 0 ? Math.round((approved / permohonan.length) * 100) : 0;
+            approvalRateEl.textContent = `${rate}%`;
+        }
+
+        renderLaporanPeralatanTable(itemUsage);
+        renderLaporanDewanTable(permohonan);
+
+    } catch (err) {
+        console.error('❌ renderLaporan failed:', err);
     }
-
-    // 3. Render Detailed Report Tables
-    renderLaporanPeralatanTable(itemUsage);
-    renderLaporanDewanTable(permohonan);
 }
 
 function renderLaporanPeralatanTable(usageData) {
     const tbody = document.getElementById('laporan-peralatan-table');
+    if (!tbody) return;
+
     const peralatan = getPeralatan();
     const kategori = getKategori();
 
     if (peralatan.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-12 text-center text-slate-400">Tiada data</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-12 text-center text-slate-400 italic">Tiada data inventori</td></tr>';
         return;
     }
 
-    tbody.innerHTML = peralatan.map(p => {
+    // Filter duplicates
+    const seen = new Set();
+    const unique = peralatan.filter(p => {
+        const key = p.namaPeralatan.toLowerCase().trim();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+
+    tbody.innerHTML = unique.map(p => {
         const kat = kategori.find(k => k.__backendId === p.kategoriId);
         const usageCount = usageData[p.namaPeralatan] || 0;
+        const hasStock = parseInt(p.kuantitiTersedia) > 0;
 
         return `
-            <tr>
-                <td class="px-6 py-4 text-slate-800">${p.namaPeralatan}</td>
-                <td class="px-6 py-4 text-slate-600">${kat ? kat.nama : '-'}</td>
-                <td class="px-6 py-4 text-center font-bold text-indigo-600">${usageCount}</td>
+            <tr class="hover:bg-slate-50 transition-colors">
                 <td class="px-6 py-4">
-                    <span class="px-2 py-1 rounded text-xs font-semibold ${p.kuantitiTersedia > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
-                        ${p.kuantitiTersedia > 0 ? 'Ada Stok' : 'Habis'}
+                    <p class="font-bold text-slate-800">${p.namaPeralatan}</p>
+                </td>
+                <td class="px-6 py-4 text-slate-500 text-[10px] font-bold uppercase tracking-tighter">
+                    ${kat ? kat.nama : '-'}
+                </td>
+                <td class="px-6 py-4 text-center">
+                    <span class="font-black text-indigo-700 text-lg">${usageCount}</span>
+                </td>
+                <td class="px-6 py-4 text-right">
+                    <span class="status-badge ${hasStock ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}">
+                        ${hasStock ? 'Sedia' : 'Habis'}
                     </span>
                 </td>
             </tr>
@@ -1469,88 +1922,66 @@ function renderLaporanPeralatanTable(usageData) {
 
 function renderLaporanDewanTable(permohonanData) {
     const tbody = document.getElementById('laporan-dewan-table');
-    const dewanApps = permohonanData.filter(p => p.jenisPermohonan && p.jenisPermohonan.includes('Dewan'));
+    if (!tbody) return;
+
+    // Robust Hall Search (Case-insensitive)
+    const dewanApps = permohonanData.filter(p => {
+        const jenis = (p.jenisPermohonan || '').toLowerCase();
+        const items = (p.items || '').toLowerCase();
+        return jenis.includes('dewan') || items.includes('dewan');
+    });
 
     if (dewanApps.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-12 text-center text-slate-400">Tiada rekod penggunaan dewan</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-10 text-center text-slate-300 font-medium italic">Tiada permohonan dewan direkodkan</td></tr>';
         return;
     }
 
-    // Just showing summary for Dewan
+    // Simplified Executive View
     tbody.innerHTML = `
-        <tr>
-            <td class="px-6 py-4 text-slate-800">Dewan Sri Kinabatangan</td>
-            <td class="px-6 py-4 text-slate-600">Fasiliti Utama</td>
-            <td class="px-6 py-4 text-center font-bold text-indigo-600">${dewanApps.length}</td>
-            <td class="px-6 py-4"><span class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">Aktif</span></td>
+        <tr class="hover:bg-slate-50 transition-colors">
+            <td class="px-6 py-6">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center border border-indigo-200 shadow-sm">
+                         <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                    </div>
+                    <div>
+                        <p class="font-black text-slate-900 text-lg leading-tight uppercase">Dewan Sri Kinabatangan</p>
+                        <p class="text-[10px] text-slate-400 uppercase font-black tracking-widest mt-1">Fasiliti Utama Utama</p>
+                    </div>
+                </div>
+            </td>
+            <td class="px-6 py-6 text-center">
+                <div class="inline-flex flex-col items-center bg-indigo-50 px-6 py-3 rounded-2xl border border-indigo-100">
+                    <span class="text-2xl font-black text-indigo-700">${dewanApps.length}</span>
+                    <span class="text-[9px] text-indigo-400 uppercase font-black tracking-widest mt-1">Acara</span>
+                </div>
+            </td>
+            <td class="px-6 py-6">
+                 <div class="flex flex-col">
+                    <span class="text-[10px] text-slate-400 uppercase font-black mb-1">Status Fasiliti</span>
+                    <span class="status-badge bg-emerald-50 text-emerald-700 border-emerald-200">Optimal / Sedia</span>
+                 </div>
+            </td>
+            <td class="px-6 py-6 text-right">
+                <p class="text-[10px] text-slate-400 font-bold uppercase mb-1">Terakhir Digunakan</p>
+                <p class="text-sm font-black text-slate-700">${new Date(dewanApps[dewanApps.length - 1].tarikhMulaPinjam).toLocaleDateString('ms-MY', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+            </td>
         </tr>
     `;
 }
 
-// Date Filters (Simple implementation)
-function applyDateFilter() {
-    const start = document.getElementById('filter-tarikh-mula').value;
-    const end = document.getElementById('filter-tarikh-akhir').value;
-
-    if (!start || !end) return;
-
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-
-    const allPermohonan = DataStore.getByDateRange(startDate, endDate); // Need to helper or just filter here
-    // For simplicity, re-fetching all and filtering in-memory
-    const filtered = allData.filter(d => {
-        if (d.type !== 'permohonan') return false;
-        const appDate = new Date(d.tarikhMulaPinjam);
-        return appDate >= startDate && appDate <= endDate;
-    });
-
-    // Quick Hack: Temporarily replace 'getPermohonan' behavior or just update UI directly?
-    // Safer: Update UI directly with filtered data
-    // Implementing a temporary override for tables
-    renderFilteredPermohonan(filtered);
-    showToast('Filter tarikh digunakan');
-}
-
+// Date Filters for Laporan
 function resetDateFilter() {
     document.getElementById('filter-tarikh-mula').value = '';
     document.getElementById('filter-tarikh-akhir').value = '';
-    renderPermohonan(); // Reset to default
-    showToast('Filter dikosongkan');
+    DataStore.notify(); // Re-render everything with original data
+    showToast('🔄 Filter dikosongkan');
 }
 
-function renderFilteredPermohonan(filteredData) {
-    const tbody = document.getElementById('permohonan-table');
-    if (filteredData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="px-6 py-12 text-center text-slate-400">Tiada permohonan dalam tarikh ini</td></tr>';
-        return;
-    }
-    // Reuse existing render map logic logic... (Duplicate logic for brevity, ideally refactor)
-    tbody.innerHTML = filteredData.map(p => `
-        <tr class="hover:bg-slate-50">
-          <td class="px-6 py-4">
-            <div class="flex items-center gap-3">
-              <div class="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-semibold text-sm">
-                ${p.nama ? p.nama.charAt(0).toUpperCase() : 'U'}
-              </div>
-              <span class="font-medium text-slate-800">${p.nama || '-'}</span>
-            </div>
-          </td>
-          <td class="px-6 py-4 text-slate-600">${p.email || '-'}</td>
-          <td class="px-6 py-4 text-slate-600">${p.nomorTelefon || '-'}</td>
-          <td class="px-6 py-4 text-slate-600">${p.cawangan || '-'}</td>
-          <td class="px-6 py-4 text-slate-600">${p.items || '-'}</td>
-          <td class="px-6 py-4 text-slate-600">${formatDate(p.tarikhMulaPinjam)}</td>
-          <td class="px-6 py-4 text-slate-600">${formatDate(p.tarikhPulang)}</td>
-          <td class="px-6 py-4"><span class="status-badge ${getStatusClass(p.status)}">${p.status || 'Dalam Proses'}</span></td>
-          <td class="px-6 py-4">
-            <div class="flex gap-2">
-              <button onclick="openTindakan('${p.__backendId}')" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">Urus</button>
-              <button onclick="openDeleteModal('${p.__backendId}', 'permohonan')" class="text-red-600 hover:text-red-800 text-sm font-medium">Padam</button>
-            </div>
-          </td>
-        </tr>
-      `).join('');
+// Re-render everything triggered by filter inputs
+function applyDateFilter() {
+    DataStore.notify();
+    showToast('✅ Data telah dikemaskini');
 }
 // Download Functions
 function toggleDownloadMenu() {
@@ -1641,4 +2072,296 @@ function downloadPDF() {
 
 function printReport() {
     window.print();
+}
+
+// Background Image Management Logic
+let currentBgBase64 = null;
+
+function handleBgUpload(input) {
+    const file = input.files[0];
+    const preview = document.getElementById('bg-preview');
+
+    if (file) {
+        if (file.size > 2 * 1024 * 1024) { // 2MB Limit
+            showToast('⚠️ Fail terlalu besar! Had 2MB sahaja.');
+            input.value = '';
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            currentBgBase64 = e.target.result;
+            preview.innerHTML = `<img src="${currentBgBase64}" class="w-full h-full object-cover">`;
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+function resetBgImage() {
+    localStorage.removeItem('portalBgImage');
+    localStorage.removeItem('portalBgSize');
+    localStorage.removeItem('portalBgPosition');
+    currentBgBase64 = null;
+    document.getElementById('bg-preview').innerHTML = '<span class="text-xs">Tiada imej dipilih</span>';
+    applyBgSettings();
+    showToast('🗑️ Latar belakang telah dipadam.');
+}
+
+function updateBgPreview() {
+    const preview = document.getElementById('bg-preview');
+    const size = document.getElementById('bg-size').value;
+    const pos = document.getElementById('bg-position').value;
+    const img = preview.querySelector('img');
+    if (img) {
+        img.style.objectFit = size;
+        img.style.objectPosition = pos;
+    }
+}
+
+function saveBgSettings() {
+    const size = document.getElementById('bg-size').value;
+    const pos = document.getElementById('bg-position').value;
+
+    if (currentBgBase64) {
+        localStorage.setItem('portalBgImage', currentBgBase64);
+    }
+
+    localStorage.setItem('portalBgSize', size);
+    localStorage.setItem('portalBgPosition', pos);
+
+    applyBgSettings();
+    showToast('✅ Tetapan latar belakang berjaya disimpan!');
+}
+
+function applyBgSettings() {
+    const savedBg = localStorage.getItem('portalBgImage');
+    const savedSize = localStorage.getItem('portalBgSize') || 'cover';
+    const savedPos = localStorage.getItem('portalBgPosition') || 'center';
+
+    let bgEl = document.getElementById('global-portal-bg');
+    if (!bgEl) {
+        bgEl = document.createElement('div');
+        bgEl.id = 'global-portal-bg';
+        bgEl.className = 'fixed inset-0 -z-50 pointer-events-none transition-all duration-700';
+        document.body.prepend(bgEl);
+    }
+
+    if (savedBg) {
+        bgEl.style.backgroundImage = `linear-gradient(rgba(15, 23, 42, 0.5), rgba(15, 23, 42, 0.5)), url(${savedBg})`;
+        bgEl.style.backgroundSize = savedSize;
+        bgEl.style.backgroundPosition = savedPos;
+        bgEl.style.backgroundRepeat = 'no-repeat';
+        bgEl.style.backgroundAttachment = 'fixed';
+        bgEl.style.opacity = '1';
+    } else {
+        bgEl.style.backgroundImage = '';
+        bgEl.style.opacity = '0';
+    }
+
+    // Also update preview if exists
+    const preview = document.getElementById('bg-preview');
+    if (preview && savedBg) {
+        preview.innerHTML = `<img src="${savedBg}" style="width:100%; height:100%; object-fit:${savedSize}; object-position:${savedPos};">`;
+    }
+}
+
+// Logo Management Logic
+let currentLogoBase64 = null;
+
+function handleLogoUpload(input) {
+    const file = input.files[0];
+    const preview = document.getElementById('logo-preview');
+
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            currentLogoBase64 = e.target.result;
+            preview.innerHTML = `<img src="${currentLogoBase64}" class="w-full h-full object-contain">`;
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+function resetLogoImage() {
+    localStorage.removeItem('portalLogo');
+    localStorage.removeItem('portalLogoFit');
+    currentLogoBase64 = null;
+    document.getElementById('logo-preview').innerHTML = '<span class="text-[10px]">Tiada logo</span>';
+    applyLogoSettings();
+    showToast('🗑️ Logo telah di-reset ke asal.');
+}
+
+function updateLogoPreview() {
+    const preview = document.getElementById('logo-preview');
+    const fit = document.getElementById('logo-fit').value;
+    const img = preview.querySelector('img');
+    if (img) img.style.objectFit = fit;
+}
+
+function saveLogoSettings() {
+    const fit = document.getElementById('logo-fit').value;
+    if (currentLogoBase64) {
+        localStorage.setItem('portalLogo', currentLogoBase64);
+    }
+    localStorage.setItem('portalLogoFit', fit);
+    applyLogoSettings();
+    showToast('✅ Tetapan logo berjaya disimpan!');
+}
+
+function applyLogoSettings() {
+    const savedLogo = localStorage.getItem('portalLogo');
+    const savedFit = localStorage.getItem('portalLogoFit') || 'contain';
+
+    const loginTarget = document.getElementById('login-logo-container');
+    const sidebarTarget = document.getElementById('sidebar-logo-container');
+    const preview = document.getElementById('logo-preview');
+
+    if (savedLogo) {
+        const logoHTML = `<img src="${savedLogo}" style="width:100%; height:100%; object-fit:${savedFit}; padding:4px;">`;
+        if (loginTarget) loginTarget.innerHTML = logoHTML;
+        if (sidebarTarget) sidebarTarget.innerHTML = logoHTML;
+
+        if (document.getElementById('logo-fit')) {
+            document.getElementById('logo-fit').value = savedFit;
+        }
+
+        if (preview) {
+            preview.innerHTML = `<img src="${savedLogo}" style="width:100%; height:100%; object-fit:${savedFit};">`;
+        }
+    } else {
+        const originalSVGs = {
+            login: '<svg id="login-logo-svg" class="w-12 h-12" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>',
+            sidebar: '<svg id="sidebar-logo-svg" class="w-6 h-6 text-indigo-900" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>'
+        };
+        if (loginTarget) loginTarget.innerHTML = originalSVGs.login;
+        if (sidebarTarget) sidebarTarget.innerHTML = originalSVGs.sidebar;
+    }
+}
+
+// --- WORD-LIKE EDITOR FOR REPORTS ---
+function executeAdvancedPrint(editMode = false) {
+    const showSummary = document.getElementById('print-summary').checked;
+    const showUsage = document.getElementById('print-usage').checked;
+
+    const startDate = document.getElementById('filter-tarikh-mula').value;
+    const endDate = document.getElementById('filter-tarikh-akhir').value;
+
+    // 1. Populate Printable Header Info
+    const dateRangeEl = document.getElementById('print-date-range');
+    const generatedDateEl = document.getElementById('print-generated-date');
+    const logoTarget = document.getElementById('print-logo-target');
+    const currentLogoContainer = document.getElementById('sidebar-logo-container');
+
+    if (logoTarget && currentLogoContainer) {
+        logoTarget.innerHTML = currentLogoContainer.innerHTML;
+        const logoImg = logoTarget.querySelector('img');
+        if (logoImg) {
+            logoImg.style.padding = '0';
+            logoImg.style.width = '100%';
+            logoImg.style.height = '100%';
+        }
+    }
+
+    if (dateRangeEl) dateRangeEl.textContent = `TEMPOH: ${startDate || '-'} hingga ${endDate || '-'}`;
+    if (generatedDateEl) generatedDateEl.textContent = `DIJANA: ${new Date().toLocaleString('ms-MY')}`;
+
+    // 2. Selection Toggle
+    const summaryCards = document.getElementById('report-summary-cards');
+    const summarySection = document.getElementById('report-summary-section');
+    const combinedUsage = document.getElementById('report-usage-combined');
+
+    if (summaryCards) summaryCards.classList.toggle('print-hide', !showSummary);
+    if (summarySection) summarySection.classList.toggle('print-hide', !showSummary);
+    if (combinedUsage) combinedUsage.classList.toggle('print-hide', !showUsage);
+
+    closeModal('modal-pilih-laporan');
+
+    if (editMode) {
+        toggleWordMode(true);
+        showToast('📝 Mod Editor Aktif. Sila klik teks untuk ubah.');
+    } else {
+        triggerPrintAction();
+    }
+}
+
+function triggerPrintAction() {
+    // Force Hide Toolbar if it was open
+    document.getElementById('editor-toolbar').classList.add('hidden');
+    document.getElementById('report-header-section').classList.add('no-print');
+    document.getElementById('print-only-header').classList.remove('hidden');
+
+    setTimeout(() => {
+        window.print();
+        document.getElementById('report-header-section').classList.remove('no-print');
+        document.querySelectorAll('.print-hide').forEach(el => el.classList.remove('print-hide'));
+        document.getElementById('print-only-header').classList.add('hidden');
+    }, 250);
+}
+
+function toggleWordMode(active) {
+    const toolbar = document.getElementById('editor-toolbar');
+    const content = document.getElementById('page-laporan');
+
+    if (active) {
+        toolbar.classList.remove('hidden');
+        content.classList.add('editing-active');
+
+        // Target all text-bearing elements precisely
+        const targetTags = 'p, span, h1, h2, h3, h4, th, td, div:not([id])';
+        document.querySelectorAll(`#page-laporan :is(${targetTags})`).forEach(el => {
+            // Only make it editable if it contains actual text and no complex children
+            if (el.innerText.trim().length > 0) {
+                el.setAttribute('contenteditable', 'true');
+            }
+        });
+
+        // Ensure interactive elements like SVG/Buttons don't become editable
+        document.querySelectorAll('#page-laporan svg, #page-laporan button').forEach(el => {
+            el.setAttribute('contenteditable', 'false');
+        });
+    } else {
+        toolbar.classList.add('hidden');
+        content.classList.remove('editing-active');
+        document.querySelectorAll('#page-laporan [contenteditable]').forEach(el => {
+            el.removeAttribute('contenteditable');
+        });
+    }
+}
+
+function formatDoc(cmd) {
+    document.execCommand(cmd, false, null);
+    // Visual feedback for bold/italic if needed
+}
+
+function changeFontSize(delta) {
+    const selection = window.getSelection();
+    if (!selection.rangeCount) return;
+
+    // Get the range and the common ancestor
+    const range = selection.getRangeAt(0);
+    let target = range.commonAncestorContainer;
+
+    // If it's a text node, get the parent element
+    if (target.nodeType === 3) target = target.parentElement;
+
+    // Logic: If there is a selection, wrap in span or apply to selected blocks
+    if (!selection.isCollapsed) {
+        // Advanced: Apply to the parent block to keep it simple for user
+        const currentSize = window.getComputedStyle(target).fontSize;
+        const newSize = Math.max(8, parseFloat(currentSize) + delta) + 'px';
+        target.style.fontSize = newSize;
+
+        showToast(`📏 Saiz tulisan: ${newSize}`);
+    } else {
+        // If just cursor is placed, change the whole block for convenience
+        const currentSize = window.getComputedStyle(target).fontSize;
+        const newSize = Math.max(8, parseFloat(currentSize) + delta) + 'px';
+        target.style.fontSize = newSize;
+    }
+}
+
+function saveEditorChanges() {
+    toggleWordMode(false);
+    showToast('✅ Tetapan disimpan. Memulakan cetakan...');
+    setTimeout(triggerPrintAction, 500);
 }
