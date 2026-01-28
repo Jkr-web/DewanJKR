@@ -125,6 +125,10 @@ document.getElementById('form-permohonan').addEventListener('submit', async (e) 
         document.getElementById('admin-terma-dewan').classList.add('hidden');
         document.getElementById('admin-terma-peralatan').classList.add('hidden');
         document.getElementById('admin-terma-warning').classList.add('hidden');
+        
+        // Refresh the permohonan table to show new entry
+        renderPermohonan();
+        updateDashboard();
     } else {
         console.error('❌ Error:', result.error);
         showToast('Gagal menambah permohonan');
@@ -402,25 +406,9 @@ function logout() {
     document.getElementById('password').value = '';
 }
 
-// Helper functions - Improved with Global Filtering
+// Helper functions - Show all permohonan data
 function getPermohonan() {
-    const startVal = document.getElementById('filter-tarikh-mula')?.value;
-    const endVal = document.getElementById('filter-tarikh-akhir')?.value;
-
-    let data = allData.filter(d => d.type === 'permohonan');
-
-    if (startVal || endVal) {
-        const start = startVal ? new Date(startVal) : new Date(0);
-        const end = endVal ? new Date(endVal) : new Date(8640000000000000);
-        if (endVal) end.setHours(23, 59, 59, 999);
-
-        data = data.filter(d => {
-            const appDate = new Date(d.tarikhMulaPinjam);
-            return appDate >= start && appDate <= end;
-        });
-    }
-
-    return data;
+    return allData.filter(d => d.type === 'permohonan');
 }
 
 function getKategori() {
@@ -441,6 +429,11 @@ function showPage(page) {
             item.classList.add('active');
         }
     });
+
+    // Render permohonan table when showing page
+    if (page === 'permohonan') {
+        renderPermohonan();
+    }
 
     // Save state if logged in
     if (isLoggedIn) {
@@ -636,14 +629,35 @@ function getStatusClass(status) {
 // Render permohonan table
 function renderPermohonan() {
     const tbody = document.getElementById('permohonan-table');
+    
+    // Safety check - if element doesn't exist, skip rendering
+    if (!tbody) {
+        console.warn('⚠️ renderPermohonan: Element #permohonan-table not found');
+        return;
+    }
+    
     const permohonan = getPermohonan();
 
     if (permohonan.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="px-6 py-12 text-center text-slate-400">Tiada permohonan</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="px-6 py-12 text-center text-slate-400">Tiada permohonan</td></tr>';
         return;
     }
 
-    tbody.innerHTML = permohonan.map(p => `
+    tbody.innerHTML = permohonan.map(p => {
+        // Format items display
+        let itemsDisplay = '-';
+        if (p.itemsData) {
+            try {
+                const items = JSON.parse(p.itemsData);
+                itemsDisplay = items.map((item, idx) => `${idx + 1}. ${item.name} (${item.qty} unit)`).join('<br>');
+            } catch (e) {
+                itemsDisplay = p.items || '-';
+            }
+        } else if (p.items && p.items !== 'Dewan') {
+            itemsDisplay = p.items;
+        }
+
+        return `
         <tr class="hover:bg-slate-50">
           <td class="px-6 py-4">
             <div class="flex items-center gap-3">
@@ -653,21 +667,25 @@ function renderPermohonan() {
               <span class="font-medium text-slate-800">${p.nama || '-'}</span>
             </div>
           </td>
-          <td class="px-6 py-4 text-slate-600">${p.email || '-'}</td>
-          <td class="px-6 py-4 text-slate-600">${p.nomorTelefon || '-'}</td>
-          <td class="px-6 py-4 text-slate-600">${p.cawangan || '-'}</td>
-          <td class="px-6 py-4 text-slate-600">${p.items || '-'}</td>
-          <td class="px-6 py-4 text-slate-600">${formatDate(p.tarikhMulaPinjam)}</td>
-          <td class="px-6 py-4 text-slate-600">${formatDate(p.tarikhPulang)}</td>
+          <td class="px-6 py-4 text-slate-600 text-sm">${p.email || '-'}</td>
+          <td class="px-6 py-4 text-slate-600 text-sm">${p.nomorTelefon || '-'}</td>
+          <td class="px-6 py-4 text-slate-600 text-sm">${p.cawangan || '-'}</td>
+          <td class="px-6 py-4 text-slate-600 text-sm font-semibold">${p.jenisPermohonan || '-'}</td>
+          <td class="px-6 py-4 text-slate-600 text-sm">
+            <div class="whitespace-pre-wrap">${itemsDisplay}</div>
+          </td>
+          <td class="px-6 py-4 text-slate-600 text-sm">${formatDate(p.tarikhMulaPinjam)}</td>
+          <td class="px-6 py-4 text-slate-600 text-sm">${formatDate(p.tarikhPulang)}</td>
           <td class="px-6 py-4"><span class="status-badge ${getStatusClass(p.status)}">${p.status || 'Dalam Proses'}</span></td>
           <td class="px-6 py-4">
-            <div class="flex gap-2">
+            <div class="flex gap-2 flex-wrap">
+              ${p.status === 'Selesai' ? '<span class="text-green-600 text-sm font-medium">✓ Selesai</span>' : `<button onclick="quickMarkCompleted('${p.__backendId}')" class="text-green-600 hover:text-green-800 text-sm font-medium" title="Tandai Selesai">✓ Selesai</button>`}
               <button onclick="openTindakan('${p.__backendId}')" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">Urus</button>
               <button onclick="openDeleteModal('${p.__backendId}', 'permohonan')" class="text-red-600 hover:text-red-800 text-sm font-medium">Padam</button>
             </div>
           </td>
         </tr>
-      `).join('');
+      `}).join('');
 }
 
 function formatDate(dateStr) {
@@ -679,6 +697,13 @@ function formatDate(dateStr) {
 // Render kategori
 function renderKategori() {
     const container = document.getElementById('kategori-list');
+    
+    // Safety check - if element doesn't exist, skip rendering
+    if (!container) {
+        console.warn('⚠️ renderKategori: Element #kategori-list not found');
+        return;
+    }
+    
     const kategori = getKategori();
 
     if (kategori.length === 0) {
@@ -708,6 +733,13 @@ function renderKategori() {
 // Render peralatan
 function renderPeralatan() {
     const container = document.getElementById('peralatan-list');
+    
+    // Safety check - if element doesn't exist, skip rendering
+    if (!container) {
+        console.warn('⚠️ renderPeralatan: Element #peralatan-list not found');
+        return;
+    }
+    
     const peralatan = getPeralatan();
     const kategori = getKategori();
 
@@ -884,8 +916,14 @@ function checkDateOverlap() {
 
             const existingStart = new Date(permohonan.tarikhMulaPinjam);
             const existingEnd = new Date(permohonan.tarikhPulang);
+            
+            // Calculate end of existing booking day (next day midnight)
+            const existingEndMidnight = new Date(existingEnd);
+            existingEndMidnight.setDate(existingEndMidnight.getDate() + 1);
+            existingEndMidnight.setHours(0, 0, 0, 0);
 
-            if (startDate < existingEnd && endDate > existingStart) {
+            // New booking start should be on or after existing booking end midnight
+            if (startDate < existingEndMidnight && endDate > existingStart) {
                 hasConflict = true;
                 conflictMessages.push(`Dewan telah ditempah pada ${formatDate(permohonan.tarikhMulaPinjam)} - ${formatDate(permohonan.tarikhPulang)}. Sila pilih tarikh lain.`);
                 break;
@@ -913,8 +951,14 @@ function checkDateOverlap() {
                 for (const permohonan of peralatanPermohonan) {
                     const existingStart = new Date(permohonan.tarikhMulaPinjam);
                     const existingEnd = new Date(permohonan.tarikhPulang);
+                    
+                    // Calculate end of existing booking day (next day midnight)
+                    const existingEndMidnight = new Date(existingEnd);
+                    existingEndMidnight.setDate(existingEndMidnight.getDate() + 1);
+                    existingEndMidnight.setHours(0, 0, 0, 0);
 
-                    if (startDate < existingEnd && endDate > existingStart) {
+                    // Check overlap: new start < existing end midnight AND new end > existing start
+                    if (startDate < existingEndMidnight && endDate > existingStart) {
                         try {
                             const permohonanItems = JSON.parse(permohonan.itemsData);
                             const usedItem = permohonanItems.find(i => i.id === item.id);
@@ -993,8 +1037,14 @@ function checkUserDateOverlap() {
         for (const p of matchingPermohonan) {
             const existingStart = new Date(p.tarikhMulaPinjam);
             const existingEnd = new Date(p.tarikhPulang);
+            
+            // Calculate end of existing booking day (next day midnight)
+            const existingEndMidnight = new Date(existingEnd);
+            existingEndMidnight.setDate(existingEndMidnight.getDate() + 1);
+            existingEndMidnight.setHours(0, 0, 0, 0);
 
-            if (startDate < existingEnd && endDate > existingStart) {
+            // New booking start should be on or after existing booking end midnight
+            if (startDate < existingEndMidnight && endDate > existingStart) {
                 hasConflict = true;
                 conflictMessages.push(`🏛️ Dewan telah ditempah pada ${formatDate(p.tarikhMulaPinjam)} - ${formatDate(p.tarikhPulang)}. Sila pilih tarikh/waktu lain.`);
                 break;
@@ -1021,8 +1071,14 @@ function checkUserDateOverlap() {
                 for (const req of relevantRequests) {
                     const reqStart = new Date(req.tarikhMulaPinjam);
                     const reqEnd = new Date(req.tarikhPulang);
+                    
+                    // Calculate end of existing booking day (next day midnight)
+                    const reqEndMidnight = new Date(reqEnd);
+                    reqEndMidnight.setDate(reqEndMidnight.getDate() + 1);
+                    reqEndMidnight.setHours(0, 0, 0, 0);
 
-                    if (startDate < reqEnd && endDate > reqStart) {
+                    // Check overlap: new start < existing end midnight AND new end > existing start
+                    if (startDate < reqEndMidnight && endDate > reqStart) {
                         const reqItems = JSON.parse(req.itemsData);
                         const match = reqItems.find(i => i.id === item.id);
                         if (match) unitsInUse += match.qty;
@@ -1054,6 +1110,13 @@ function checkUserDateOverlap() {
 
 function updateKategoriDropdown() {
     const select = document.getElementById('kategori-peralatan');
+    
+    // Safety check - if element doesn't exist, skip
+    if (!select) {
+        console.warn('⚠️ updateKategoriDropdown: Element #kategori-peralatan not found');
+        return;
+    }
+    
     const kategori = getKategori();
 
     select.innerHTML = '<option value="">Pilih Kategori</option>' +
@@ -1091,7 +1154,14 @@ function updateUserItemDropdown() {
             activePermohonan.forEach(req => {
                 const reqStart = new Date(req.tarikhMulaPinjam);
                 const reqEnd = new Date(req.tarikhPulang);
-                if (start < reqEnd && end > reqStart) {
+                
+                // Calculate end of existing booking day (next day midnight)
+                const reqEndMidnight = new Date(reqEnd);
+                reqEndMidnight.setDate(reqEndMidnight.getDate() + 1);
+                reqEndMidnight.setHours(0, 0, 0, 0);
+
+                // Check overlap: new start < existing end midnight AND new end > existing start
+                if (start < reqEndMidnight && end > reqStart) {
                     try {
                         const items = JSON.parse(req.itemsData);
                         const match = items.find(i => i.id === p.__backendId);
@@ -1641,8 +1711,158 @@ function openTindakan(id) {
     // Set current status
     document.getElementById('status-permohonan').value = permohonan.status || 'Dalam Proses';
     document.getElementById('catatan-admin').value = permohonan.catatan || '';
+    
+    // Set tarikh selesai if already recorded
+    document.getElementById('tarikh-selesai').value = permohonan.tarikhSelesai ? formatDate(permohonan.tarikhSelesai) : '';
+
+    // Hide/Show button Selesai based on status
+    const btnSelesai = document.getElementById('btn-mark-selesai');
+    if (permohonan.status === 'Selesai' || permohonan.statusSelesai === true) {
+        btnSelesai.classList.add('hidden');
+    } else {
+        btnSelesai.classList.remove('hidden');
+    }
+
+    // Populate items edit section if permohonan is for Peralatan
+    if (permohonan.jenisPermohonan === 'Peralatan') {
+        document.getElementById('items-edit-section').classList.remove('hidden');
+        populateItemsEditContainer(permohonan);
+    } else {
+        document.getElementById('items-edit-section').classList.add('hidden');
+    }
 
     openModal('modal-tindakan');
+}
+
+// Populate items edit container with checkboxes
+function populateItemsEditContainer(permohonan) {
+    const container = document.getElementById('items-edit-container');
+    const peralatan = getPeralatan();
+    
+    if (peralatan.length === 0) {
+        container.innerHTML = '<p class="text-slate-400 text-sm text-center py-4">Tiada peralatan tersedia</p>';
+        return;
+    }
+
+    // Parse existing items
+    let selectedItems = [];
+    if (permohonan.itemsData) {
+        try {
+            selectedItems = JSON.parse(permohonan.itemsData);
+        } catch (e) {
+            selectedItems = [];
+        }
+    }
+
+    container.innerHTML = peralatan.map((p, idx) => {
+        const selected = selectedItems.find(item => item.name === p.namaPeralatan);
+        const qty = selected ? selected.qty : 0;
+        const tersedia = Math.max(0, parseInt(p.kuantitiTersedia) || 0);
+        const isAvailable = tersedia > 0;
+
+        return `
+            <div class="border border-slate-300 rounded-lg p-4 bg-white hover:bg-slate-50 transition-colors">
+                <div class="flex items-start gap-4">
+                    <div class="flex items-center pt-1">
+                        <input type="checkbox" id="item-tindakan-${p.__backendId}" class="item-tindakan-checkbox w-5 h-5 cursor-pointer"
+                            data-name="${p.namaPeralatan}" ${selected ? 'checked' : ''} onchange="updateTindakanItemsDisplay()">
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <label for="item-tindakan-${p.__backendId}" class="cursor-pointer block">
+                            <p class="font-bold text-slate-800 text-base">${idx + 1}. ${p.namaPeralatan}</p>
+                            <p class="text-xs ${isAvailable ? 'text-green-600' : 'text-red-600'} font-semibold mt-1">Stok Tersedia: ${tersedia} unit</p>
+                        </label>
+                    </div>
+                    <div class="flex items-center gap-2 flex-shrink-0">
+                        <input type="number" id="qty-tindakan-${p.__backendId}" min="1" max="${tersedia}" value="${selected ? qty : 1}"
+                            class="item-tindakan-qty w-20 px-3 py-2 border border-slate-300 rounded-lg text-center text-sm font-medium" ${selected ? '' : 'disabled'}>
+                        <span class="text-sm text-slate-600 font-medium min-w-[40px]">unit</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    // Re-attach event listeners
+    document.querySelectorAll('.item-tindakan-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const qty = document.getElementById(`qty-tindakan-${this.dataset.name.split('###')[0]}`);
+            if (qty) qty.disabled = !this.checked;
+            updateTindakanItemsDisplay();
+        });
+    });
+}
+
+// Update items display and itemsData after editing
+function updateTindakanItemsDisplay() {
+    const selected = [];
+    document.querySelectorAll('.item-tindakan-checkbox:checked').forEach(checkbox => {
+        const name = checkbox.dataset.name;
+        // Find the corresponding qty input
+        const qtyInput = document.querySelector(`input.item-tindakan-qty[data-name="${name}"]`);
+        if (!qtyInput) {
+            // Try by finding the container and looking for qty input
+            const container = checkbox.closest('div[class*="flex items-center"]');
+            const qtyEl = container?.querySelector('input[type="number"]');
+            const qty = qtyEl ? parseInt(qtyEl.value) || 1 : 1;
+            selected.push({ name, qty });
+        } else {
+            const qty = parseInt(qtyInput.value) || 1;
+            selected.push({ name, qty });
+        }
+    });
+    
+    // Store items data for form submission
+    window.tindakanSelectedItems = selected;
+}
+
+// Mark permohonan as completed with timestamp
+function markAsCompleted() {
+    const id = document.getElementById('tindakan-id').value;
+    const data = allData.find(d => d.__backendId === id);
+    
+    if (!data) {
+        showToast('❌ Data tidak dijumpai');
+        return;
+    }
+    
+    // Record completion timestamp and mark statusSelesai only if not already recorded
+    if (!data.statusSelesai) {
+        data.statusSelesai = true;
+        data.tarikhSelesai = new Date().toISOString();
+        data.status = 'Selesai';
+        DataStore.save(allData);
+        showToast('✅ Tarikh selesai telah direkodkan!');
+    } else {
+        showToast('⚠️ Tarikh selesai sudah direkodkan sebelumnya');
+    }
+    
+    // Update the display field
+    document.getElementById('tarikh-selesai').value = formatDate(data.tarikhSelesai);
+    document.getElementById('status-permohonan').value = 'Selesai';
+}
+
+// Quick mark as completed from table
+function quickMarkCompleted(id) {
+    const data = allData.find(d => d.__backendId === id);
+    
+    if (!data) {
+        showToast('❌ Data tidak dijumpai');
+        return;
+    }
+    
+    // Record completion timestamp and mark statusSelesai
+    if (!data.statusSelesai) {
+        data.statusSelesai = true;
+        data.tarikhSelesai = new Date().toISOString();
+        data.status = 'Selesai';
+        DataStore.save(allData);
+        showToast('✅ Permohonan ditandai selesai!');
+        renderPermohonan();
+        renderLaporanDewanTable(getPermohonan()); // Update laporan
+    } else {
+        showToast('⚠️ Permohonan sudah ditandai selesai sebelumnya');
+    }
 }
 
 // Handle Tindakan Submit
@@ -1656,6 +1876,20 @@ document.getElementById('form-tindakan').addEventListener('submit', (e) => {
     if (data) {
         data.status = status;
         data.catatan = catatan;
+        
+        // Update items if edited (for Peralatan permohonan)
+        if (window.tindakanSelectedItems && window.tindakanSelectedItems.length > 0) {
+            data.itemsData = JSON.stringify(window.tindakanSelectedItems);
+            const itemNames = window.tindakanSelectedItems.map(item => `${item.name} (${item.qty} unit)`).join(', ');
+            data.items = itemNames;
+        }
+        
+        // If status is set to "Selesai", mark statusSelesai as true and record completion time
+        if (status === 'Selesai' && !data.statusSelesai) {
+            data.statusSelesai = true;
+            data.tarikhSelesai = new Date().toISOString();
+        }
+        
         DataStore.save(allData); // Save updated array
 
         showToast('Status permohonan dikemaskini!');
@@ -1806,12 +2040,12 @@ function renderLaporan() {
         const chartStatusDiv = document.getElementById('chart-status');
         if (chartStatusDiv) {
             if (Object.keys(statusCounts).length === 0) {
-                chartStatusDiv.innerHTML = '<p class="text-white/40 text-center py-8">Tiada data untuk tempoh ini</p>';
+                chartStatusDiv.innerHTML = '<p class="text-slate-400 text-center py-8">Tiada data untuk tempoh ini</p>';
             } else {
                 chartStatusDiv.innerHTML = Object.entries(statusCounts).map(([status, count]) => `
-                    <div class="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/10 mb-3">
-                        <span class="font-bold text-slate-300 text-xs uppercase tracking-wider">${status}</span>
-                        <span class="font-black text-white text-xl">${count}</span>
+                    <div class="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 mb-3">
+                        <span class="font-bold text-slate-700 text-xs uppercase tracking-wider">${status}</span>
+                        <span class="font-black text-indigo-600 text-xl">${count}</span>
                     </div>
                 `).join('');
             }
@@ -1822,7 +2056,10 @@ function renderLaporan() {
             if (p.itemsData) {
                 try {
                     const items = JSON.parse(p.itemsData);
-                    items.forEach(item => { itemUsage[item.name] = (itemUsage[item.name] || 0) + (parseInt(item.qty) || 1); });
+                    items.forEach(item => { 
+                        // Hitung kekerapan permohonan (1 permohonan = 1, tidak kira unit)
+                        itemUsage[item.name] = (itemUsage[item.name] || 0) + 1; 
+                    });
                 } catch (e) { }
             } else if (p.items && p.items !== 'Dewan') {
                 itemUsage[p.items] = (itemUsage[p.items] || 0) + 1;
@@ -1843,7 +2080,7 @@ function renderLaporan() {
                     <div class="mb-4">
                         <div class="flex justify-between items-center text-[11px] font-bold mb-1.5">
                             <span class="text-slate-700">${name}</span>
-                            <span class="text-indigo-600">${count} Unit</span>
+                            <span class="text-indigo-600">${count} Kali</span>
                         </div>
                         <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
                             <div class="bg-indigo-600 h-full rounded-full transition-all duration-1000" style="width: ${perc}%"></div>
@@ -1924,11 +2161,11 @@ function renderLaporanDewanTable(permohonanData) {
     const tbody = document.getElementById('laporan-dewan-table');
     if (!tbody) return;
 
-    // Filter approved hall applications
+    // Filter approved hall applications (hanya Diluluskan & Selesai)
     const dewanApps = permohonanData.filter(p => {
         const jenis = (p.jenisPermohonan || '').toLowerCase();
         const items = (p.items || '').toLowerCase();
-        return (jenis.includes('dewan') || items.includes('dewan')) && p.status === 'Diluluskan';
+        return (jenis.includes('dewan') || items.includes('dewan')) && (p.status === 'Diluluskan' || p.status === 'Selesai');
     });
 
     if (dewanApps.length === 0) {
@@ -1940,8 +2177,30 @@ function renderLaporanDewanTable(permohonanData) {
     // Sort by date
     const sortedApps = [...dewanApps].sort((a, b) => new Date(a.tarikhMulaPinjam) - new Date(b.tarikhMulaPinjam));
 
-    const pastEvents = sortedApps.filter(p => new Date(p.tarikhMulaPinjam) < now);
-    const upcomingEvents = sortedApps.filter(p => new Date(p.tarikhMulaPinjam) >= now);
+    // Categorize events:
+    // 1. Acara Terdahulu = Status "Selesai" (baik dari button OR status field) - ONLY SHOW IF STATUS IS "SELESAI"
+    // 2. Acara Akan Datang = Tarikh Mula Penggunaan belum tiba (startDate > now)
+    // 3. Acara Sedang Berlangsung = Sudah bermula tapi belum selesai (startDate <= now < endDate + 1 day)
+    
+    const pastEvents = sortedApps.filter(p => {
+        // Only show as past if status is explicitly "Selesai"
+        return p.status === 'Selesai';
+    });
+    
+    const upcomingEvents = sortedApps.filter(p => {
+        const startDate = new Date(p.tarikhMulaPinjam);
+        return startDate > now;
+    });
+    
+    const ongoingEvents = sortedApps.filter(p => {
+        const startDate = new Date(p.tarikhMulaPinjam);
+        const endDate = new Date(p.tarikhPulang);
+        // Calculate midnight (00:00) of the next day after end date
+        const nextDayMidnight = new Date(endDate);
+        nextDayMidnight.setDate(nextDayMidnight.getDate() + 1);
+        nextDayMidnight.setHours(0, 0, 0, 0);
+        return startDate <= now && now < nextDayMidnight;
+    });
 
     let html = `
         <tr class="bg-indigo-50/50">
@@ -1974,27 +2233,32 @@ function renderLaporanDewanTable(permohonanData) {
         </tr>
     `;
 
-    // Past Events Section
+    // Ongoing Events Section
     html += `
-        <tr class="bg-slate-50">
-            <td colspan="4" class="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                🕒 Acara Terdahulu (${pastEvents.length})
+        <tr class="bg-orange-50">
+            <td colspan="4" class="px-6 py-4 text-[10px] font-black text-orange-600 uppercase tracking-widest">
+                🔴 Acara Sedang Berlangsung (${ongoingEvents.length})
             </td>
         </tr>
     `;
-    if (pastEvents.length === 0) {
-        html += `<tr><td colspan="4" class="px-6 py-4 text-center text-xs text-slate-400 italic">Tiada acara terdahulu</td></tr>`;
+    if (ongoingEvents.length === 0) {
+        html += `<tr><td colspan="4" class="px-6 py-4 text-center text-xs text-slate-400 italic">Tiada acara sedang berlangsung</td></tr>`;
     } else {
-        pastEvents.slice(-3).reverse().forEach(p => {
+        ongoingEvents.forEach(p => {
             html += `
-                <tr class="border-b border-slate-50 transition-colors hover:bg-slate-50/50">
+                <tr class="border-b border-orange-100 transition-colors hover:bg-orange-50/30 bg-orange-50/10">
                     <td class="px-6 py-4">
-                        <p class="text-sm font-bold text-slate-700">${p.tujuan || 'Aktiviti Dewan'}</p>
-                        <p class="text-[10px] text-slate-400 tracking-wide">${p.namaPemohon}</p>
+                        <p class="text-sm font-bold text-orange-900">${p.tujuan || 'Aktiviti Dewan'}</p>
+                        <p class="text-[10px] text-orange-500 tracking-wide">${p.nama || 'Pemohon'}</p>
                     </td>
-                    <td class="px-6 py-4 text-xs text-slate-500">${new Date(p.tarikhMulaPinjam).toLocaleDateString('ms-MY', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
-                    <td class="px-6 py-4 text-center"><span class="px-2 py-1 bg-slate-100 text-slate-600 text-[9px] font-bold rounded-full uppercase">Selesai</span></td>
-                    <td class="px-6 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-tighter">Arsip</td>
+                    <td class="px-6 py-4">
+                        <div class="text-xs text-orange-700 font-medium">
+                            <p class="text-orange-900 font-bold">Tarikh Penggunaan</p>
+                            <p class="font-bold">${new Date(p.tarikhMulaPinjam).toLocaleDateString('ms-MY', { day: '2-digit', month: 'short', year: 'numeric' })} - ${new Date(p.tarikhPulang).toLocaleDateString('ms-MY', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 text-center"><span class="px-2 py-1 bg-orange-200 text-orange-800 text-[9px] font-bold rounded-full uppercase tracking-widest shadow-sm animate-pulse">Sedang</span></td>
+                    <td class="px-6 py-4 text-right text-[10px] font-black text-orange-600 uppercase tracking-tighter">Aktif</td>
                 </tr>
             `;
         });
@@ -2016,11 +2280,47 @@ function renderLaporanDewanTable(permohonanData) {
                 <tr class="border-b border-slate-50 transition-colors hover:bg-indigo-50/20">
                     <td class="px-6 py-4">
                         <p class="text-sm font-bold text-indigo-900">${p.tujuan || 'Aktiviti Dewan'}</p>
-                        <p class="text-[10px] text-indigo-400 tracking-wide">${p.namaPemohon}</p>
+                        <p class="text-[10px] text-indigo-400 tracking-wide">${p.nama || 'Pemohon'}</p>
                     </td>
-                    <td class="px-6 py-4 text-xs text-indigo-600 font-bold">${new Date(p.tarikhMulaPinjam).toLocaleDateString('ms-MY', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
+                    <td class="px-6 py-4">
+                        <div class="text-xs text-indigo-600 font-medium">
+                            <p class="text-indigo-900 font-bold">Tarikh Penggunaan</p>
+                            <p class="font-bold">${new Date(p.tarikhMulaPinjam).toLocaleDateString('ms-MY', { day: '2-digit', month: 'short', year: 'numeric' })} - ${new Date(p.tarikhPulang).toLocaleDateString('ms-MY', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                        </div>
+                    </td>
                     <td class="px-6 py-4 text-center"><span class="px-2 py-1 bg-indigo-100 text-indigo-700 text-[9px] font-bold rounded-full uppercase tracking-widest shadow-sm">Booking</span></td>
                     <td class="px-6 py-4 text-right text-[10px] font-black text-indigo-600 uppercase tracking-tighter">Sedia</td>
+                </tr>
+            `;
+        });
+    }
+
+    // Past Events Section
+    html += `
+        <tr class="bg-slate-50">
+            <td colspan="4" class="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                🕒 Acara Terdahulu (${pastEvents.length})
+            </td>
+        </tr>
+    `;
+    if (pastEvents.length === 0) {
+        html += `<tr><td colspan="4" class="px-6 py-4 text-center text-xs text-slate-400 italic">Tiada acara terdahulu</td></tr>`;
+    } else {
+        pastEvents.slice(-3).reverse().forEach(p => {
+            html += `
+                <tr class="border-b border-slate-50 transition-colors hover:bg-slate-50/50">
+                    <td class="px-6 py-4">
+                        <p class="text-sm font-bold text-slate-700">${p.tujuan || 'Aktiviti Dewan'}</p>
+                        <p class="text-[10px] text-slate-400 tracking-wide">${p.nama || 'Pemohon'}</p>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="text-xs text-slate-500 font-medium">
+                            <p class="text-slate-600 font-bold">Tarikh Tamat</p>
+                            <p>${new Date(p.tarikhMulaPinjam).toLocaleDateString('ms-MY', { day: '2-digit', month: 'short', year: 'numeric' })} - ${new Date(p.tarikhPulang).toLocaleDateString('ms-MY', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 text-center"><span class="px-2 py-1 bg-slate-100 text-slate-600 text-[9px] font-bold rounded-full uppercase">Selesai</span></td>
+                    <td class="px-6 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-tighter">Arsip</td>
                 </tr>
             `;
         });
@@ -2039,9 +2339,46 @@ function resetDateFilter() {
 
 // Re-render everything triggered by filter inputs
 function applyDateFilter() {
-    DataStore.notify();
-    showToast('✅ Data telah dikemaskini');
+    console.log('applyDateFilter called');
+    // Ensure data store updates and laporan rerenders immediately
+    try {
+        DataStore.notify();
+        renderLaporan();
+        showToast('✅ Data telah dikemaskini');
+    } catch (e) {
+        console.error('❌ applyDateFilter error:', e);
+        showToast('❌ Gagal menerapkan filter. Lihat console.');
+    }
 }
+
+// Date Filters for Senarai Permohonan section
+function applyPermohonanDateFilter() {
+    console.log('applyPermohonanDateFilter called');
+    try {
+        DataStore.notify();
+        renderPermohonan();
+        showToast('✅ Filter telah diterapkan');
+    } catch (e) {
+        console.error('❌ applyPermohonanDateFilter error:', e);
+        showToast('❌ Gagal menerapkan filter permohonan. Lihat console.');
+    }
+}
+
+function resetPermohonanDateFilter() {
+    const filterStart = document.getElementById('permohonan-filter-tarikh-mula');
+    const filterEnd = document.getElementById('permohonan-filter-tarikh-akhir');
+    if (filterStart) filterStart.value = '';
+    if (filterEnd) filterEnd.value = '';
+    try {
+        DataStore.notify();
+        renderPermohonan();
+        showToast('🔄 Filter dikosongkan');
+    } catch (e) {
+        console.error('❌ resetPermohonanDateFilter error:', e);
+        showToast('❌ Gagal reset filter. Lihat console.');
+    }
+}
+
 // Download Functions
 function toggleDownloadMenu() {
     const menu = document.getElementById('download-menu');
@@ -2368,8 +2705,8 @@ function openReportPreviewModal() {
     const startDate = document.getElementById('filter-tarikh-mula').value;
     const endDate = document.getElementById('filter-tarikh-akhir').value;
     const dateText = (startDate || endDate)
-        ? `TEMPOH: ${startDate || '-'} HINGGA ${endDate || '-'}`
-        : "TEMPOH: SEPANJANG MASA";
+        ? `${startDate || '-'} hingga ${endDate || '-'}`
+        : "Sepanjang Masa";
 
     const activeStatus = document.getElementById('report-active-status').textContent;
     const topItem = document.getElementById('report-top-item').textContent;
@@ -2380,92 +2717,127 @@ function openReportPreviewModal() {
     const showPeralatan = document.getElementById('print-peralatan').checked;
     const showDewan = document.getElementById('print-dewan').checked;
 
-    // 3. Build Structured HTML Content
+    // 3. Get logo if available
+    const logoContainer = document.getElementById('sidebar-logo-container');
+    let logoHTML = '';
+    if (logoContainer) {
+        const logoImg = logoContainer.querySelector('img');
+        if (logoImg) {
+            logoHTML = `<img src="${logoImg.src}" style="width: 80px; height: 80px; object-fit: contain;" />`;
+        }
+    }
+
+    // 4. Build Professional A4 Report HTML
     let reportContent = `
-        <div class="report-document-content">
-            <!-- Formal Header -->
-            <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 20px; margin-bottom: 30px;">
-                <h1 style="font-size: 24pt; font-weight: 900; margin: 0; color: #1e1b4b;">LAPORAN PENGURUSAN</h1>
-                <h2 style="font-size: 14pt; font-weight: 700; margin: 5px 0 0; color: #4338ca; text-transform: uppercase;">Penggunaan Dewan dan Peralatan</h2>
-                <p style="font-size: 10pt; font-weight: 600; margin-top: 15px; color: #64748b;">${dateText}</p>
-            </div>
-
-            ${showSummary ? `
-            <!-- Executive Summary -->
-            <div style="margin-bottom: 40px;">
-                <h3 style="font-size: 12pt; font-weight: 900; text-transform: uppercase; border-left: 4px solid #4f46e5; padding-left: 10px; margin-bottom: 20px;">1. Ringkasan Eksekutif</h3>
-                <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
-                    <tr>
-                        <td style="padding: 15px; border: 1px solid #e2e8f0; width: 33.3%;">
-                            <p style="font-size: 9pt; color: #64748b; margin: 0; text-transform: uppercase; font-weight: 700;">Status Keaktifan</p>
-                            <p style="font-size: 16pt; font-weight: 900; margin: 5px 0 0; color: #1e293b;">${activeStatus}</p>
-                        </td>
-                        <td style="padding: 15px; border: 1px solid #e2e8f0; width: 33.3%;">
-                            <p style="font-size: 9pt; color: #64748b; margin: 0; text-transform: uppercase; font-weight: 700;">Item Paling Laris</p>
-                            <p style="font-size: 16pt; font-weight: 900; margin: 5px 0 0; color: #1e293b;">${topItem}</p>
-                        </td>
-                        <td style="padding: 15px; border: 1px solid #e2e8f0; width: 33.3%;">
-                            <p style="font-size: 9pt; color: #64748b; margin: 0; text-transform: uppercase; font-weight: 700;">Kadar Kelulusan</p>
-                            <p style="font-size: 16pt; font-weight: 900; margin: 5px 0 0; color: #1e293b;">${approvalRate}</p>
-                        </td>
-                    </tr>
-                </table>
-            </div>
-            ` : ''}
-
-            ${showPeralatan ? `
-            <!-- Peralatan Analysis -->
-            <div style="margin-bottom: 40px;">
-                <h3 style="font-size: 12pt; font-weight: 900; text-transform: uppercase; border-left: 4px solid #4f46e5; padding-left: 10px; margin-bottom: 20px;">2. Analisis Peminjaman Peralatan</h3>
-                <div style="margin-bottom: 20px;">
-                    <p style="font-size: 10pt; color: #475569; margin-bottom: 15px;">Berikut adalah senarai peralatan yang telah dipinjam bagi tempoh berkenaan:</p>
-                    <table style="width: 100%; border-collapse: collapse;">
-                        <thead>
-                            <tr style="background-color: #f8fafc;">
-                                <th style="border: 1px solid #e2e8f0; padding: 10px; text-align: left; font-size: 9pt; text-transform: uppercase;">Peralatan</th>
-                                <th style="border: 1px solid #e2e8f0; padding: 10px; text-align: left; font-size: 9pt; text-transform: uppercase;">Kategori</th>
-                                <th style="border: 1px solid #e2e8f0; padding: 10px; text-align: center; font-size: 9pt; text-transform: uppercase;">Unit Dipinjam</th>
-                                <th style="border: 1px solid #e2e8f0; padding: 10px; text-align: right; font-size: 9pt; text-transform: uppercase;">Status Inventori</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${document.getElementById('laporan-peralatan-table').innerHTML}
-                        </tbody>
-                    </table>
+        <div class="report-document">
+            
+            <!-- FIXED HEADER -->
+            <div class="report-header">
+                <div style="display: flex; align-items: center; gap: 25px;">
+                    ${logoHTML ? `<div class="logo-container">${logoHTML}</div>` : ''}
+                    <div style="flex: 1;">
+                        <h1>Laporan Pengurusan</h1>
+                        <h2>Penggunaan Dewan dan Peralatan</h2>
+                        <div class="date-info">
+                            <p>📅 Tempoh: <strong>${dateText}</strong></p>
+                        </div>
+                    </div>
                 </div>
             </div>
-            ` : ''}
 
-            ${showDewan ? `
-            <!-- Dewan Analysis -->
-            <div style="margin-bottom: 40px;">
-                <h3 style="font-size: 12pt; font-weight: 900; text-transform: uppercase; border-left: 4px solid #4f46e5; padding-left: 10px; margin-bottom: 20px;">3. Analisis Penggunaan Dewan</h3>
-                <div style="margin-bottom: 20px;">
-                    <p style="font-size: 10pt; color: #475569; margin-bottom: 15px;">Ringkasan penggunaan fasiliti dewan:</p>
-                    <table style="width: 100%; border-collapse: collapse;">
-                        ${document.getElementById('laporan-dewan-table').innerHTML}
-                    </table>
+            <!-- MAIN CONTENT -->
+            <div class="report-body">
+                
+                ${showSummary ? `
+                <div class="report-section" style="border-left: 6px solid #667eea;">
+                    <h3 style="color: #667eea;">
+                        Ringkasan Eksekutif
+                    </h3>
+                    <div class="stats-grid">
+                        <div class="stat-card" style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-color: #bae6fd; color: #0369a1;">
+                            <p>Status Keaktifan</p>
+                            <p style="color: #0c4a6e;">${activeStatus}</p>
+                        </div>
+                        <div class="stat-card" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-color: #fcd34d; color: #92400e;">
+                            <p>Item Paling Laris</p>
+                            <p style="color: #78350f;">${topItem}</p>
+                        </div>
+                        <div class="stat-card" style="background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); border-color: #86efac; color: #15803d;">
+                            <p>Kadar Kelulusan</p>
+                            <p style="color: #14532d;">${approvalRate}</p>
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+
+                ${showPeralatan ? `
+                <div class="report-section" style="border-left: 6px solid #f59e0b;">
+                    <h3 style="color: #f59e0b;">
+                        Analisis Peminjaman Peralatan
+                    </h3>
+                    <p style="font-size: 10pt; color: #64748b; margin-bottom: 15px;">Berikut adalah analisis kekerapan permohonan peralatan berdasarkan aliran inventori dan permintaan:</p>
+                    <div style="border: 2px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+                        <table style="margin: 0;">
+                            <thead>
+                                <tr>
+                                    <th style="border: 1px solid #e5e7eb;">Peralatan</th>
+                                    <th style="border: 1px solid #e5e7eb;">Kategori</th>
+                                    <th style="text-align: center; border: 1px solid #e5e7eb;">Kekerapan Permohonan</th>
+                                    <th style="text-align: right; border: 1px solid #e5e7eb;">Status Inventori</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${document.getElementById('laporan-peralatan-table').innerHTML}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                ` : ''}
+
+                ${showDewan ? `
+                <div class="report-section" style="border-left: 6px solid #8b5cf6;">
+                    <h3 style="color: #8b5cf6;">
+                        Analisis Penggunaan Dewan
+                    </h3>
+                    <p style="font-size: 10pt; color: #64748b; margin-bottom: 15px;">Ringkasan penggunaan fasiliti dewan:</p>
+                    <div style="border: 2px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+                        <table style="margin: 0;">
+                            ${document.getElementById('laporan-dewan-table').innerHTML}
+                        </table>
+                    </div>
+                </div>
+                ` : ''}
+
+            </div>
+
+            <!-- FIXED FOOTER -->
+            <div class="report-footer">
+                <div class="footer-left">
+                    <p>Sistem Pengurusan Peralatan & Dewan</p>
+                    <p>Dewan Sri Kinabatangan</p>
+                </div>
+                <div class="footer-right">
+                    <p>Dijana secara automatik pada:</p>
+                    <p>${new Date().toLocaleString('ms-MY', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: true
+    }).toUpperCase().replace(/AM/g, 'PAGI').replace(/PM/g, 'PTG')}</p>
                 </div>
             </div>
-            ` : ''}
 
-            <div style="margin-top: 50px; border-top: 1px solid #e2e8f0; padding-top: 20px; text-align: left; font-size: 9pt; color: #64748b; display: flex; justify-content: space-between; align-items: start;">
-                <div>
-                    <p style="margin: 0; font-weight: 700; color: #475569;">Sistem Pengurusan Peralatan & Dewan</p>
-                </div>
-                <div style="text-align: right;">
-                    <p style="margin: 0; italic">Dijana secara automatik pada: ${new Date().toLocaleString('ms-MY', { day: 'numeric', month: 'numeric', year: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true }).toUpperCase().replace(/AM/g, 'PAGI').replace(/PM/g, 'PTG')}</p>
-                </div>
-            </div>
         </div>
     `;
 
     editableArea.innerHTML = reportContent;
     modal.classList.add('active');
 
-    // Clean up any stray classes or styles from cloned tables
+    // Clean up any stray classes from cloned tables
     editableArea.querySelectorAll('tr, td, th').forEach(el => {
-        el.className = el.className.replace(/hover:bg-slate-50|transition-colors/g, '');
+        el.className = el.className.replace(/hover:bg-slate-50|transition-colors|bg-indigo-50\/50|bg-slate-50|bg-indigo-50\/30|border-b|border-slate-50|border-slate-100/g, '');
     });
 
     // Initialize listeners
@@ -2485,12 +2857,279 @@ function initReportPreviewListeners() {
 
     document.getElementById('confirmPrintBtn').onclick = () => {
         const editableArea = document.getElementById('reportEditableArea');
-        const reportSource = document.getElementById('report-editable-area');
-        if (editableArea && reportSource) {
-            reportSource.innerHTML = editableArea.innerHTML;
-            closeReportPreviewModal();
-            triggerPrintAction();
+        if (!editableArea) return;
+
+        // Create a temporary print window with the edited content
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            showToast('❌ Sila benarkan popup untuk mencetak');
+            return;
         }
+
+        // Build the print document with proper A4 layout and fixed header/footer
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>Laporan Pengurusan - Dewan & Peralatan</title>
+                <style>
+                    * { 
+                        margin: 0; 
+                        padding: 0; 
+                        box-sizing: border-box; 
+                    }
+                    
+                    @page { 
+                        size: A4; 
+                        margin: 0;
+                    }
+                    
+                    body { 
+                        font-family: 'Inter', 'Segoe UI', Arial, sans-serif; 
+                        line-height: 1.6; 
+                        color: #1e293b;
+                        background: white;
+                    }
+                    
+                    /* Fixed Header */
+                    .report-header {
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        right: 0;
+                        height: 160px;
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        padding: 25px 35px;
+                        border-bottom: 5px solid #4c51bf;
+                        z-index: 1000;
+                    }
+                    
+                    .report-header h1 {
+                        font-size: 26pt;
+                        font-weight: 900;
+                        margin: 0;
+                        text-transform: uppercase;
+                        letter-spacing: 1px;
+                        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+                    }
+                    
+                    .report-header h2 {
+                        font-size: 13pt;
+                        font-weight: 600;
+                        margin: 5px 0 0;
+                        opacity: 0.95;
+                        text-transform: uppercase;
+                    }
+                    
+                    .report-header .date-info {
+                        margin-top: 10px;
+                        padding-top: 10px;
+                        border-top: 2px solid rgba(255,255,255,0.3);
+                        font-size: 10pt;
+                    }
+                    
+                    .logo-container {
+                        flex-shrink: 0;
+                        background: white;
+                        padding: 10px;
+                        border-radius: 10px;
+                        box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+                    }
+                    
+                    /* Fixed Footer */
+                    .report-footer {
+                        position: fixed;
+                        bottom: 0;
+                        left: 0;
+                        right: 0;
+                        height: 70px;
+                        background: #1e293b;
+                        color: white;
+                        padding: 15px 35px;
+                        border-top: 5px solid #475569;
+                        z-index: 1000;
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                    }
+                    
+                    .footer-left p:first-child {
+                        font-weight: 800;
+                        font-size: 10pt;
+                        text-transform: uppercase;
+                        letter-spacing: 1px;
+                        margin: 0;
+                    }
+                    
+                    .footer-left p:last-child {
+                        font-size: 8pt;
+                        opacity: 0.7;
+                        margin: 3px 0 0;
+                    }
+                    
+                    .footer-right {
+                        text-align: right;
+                    }
+                    
+                    .footer-right p:first-child {
+                        font-size: 8pt;
+                        opacity: 0.8;
+                        margin: 0;
+                    }
+                    
+                    .footer-right p:last-child {
+                        font-weight: 700;
+                        font-size: 9pt;
+                        margin: 3px 0 0;
+                    }
+                    
+                    /* Main content with proper spacing */
+                    .report-body {
+                        margin-top: 160px;
+                        margin-bottom: 70px;
+                        padding: 25px 35px;
+                        background: #f8fafc;
+                        min-height: calc(100vh - 230px);
+                    }
+                    
+                    /* Content sections */
+                    .report-section {
+                        background: white;
+                        padding: 25px;
+                        border-radius: 10px;
+                        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+                        margin-bottom: 25px;
+                        page-break-inside: avoid;
+                        break-inside: avoid;
+                    }
+                    
+                    .report-section h3 {
+                        font-size: 15pt;
+                        font-weight: 900;
+                        text-transform: uppercase;
+                        color: #1e293b;
+                        margin: 0 0 18px;
+                        display: flex;
+                        align-items: center;
+                        gap: 10px;
+                        page-break-after: avoid;
+                    }
+                    
+                    .section-number {
+                        display: inline-flex;
+                        align-items: center;
+                        justify-content: center;
+                        width: 32px;
+                        height: 32px;
+                        color: white;
+                        border-radius: 8px;
+                        font-size: 16pt;
+                        flex-shrink: 0;
+                    }
+                    
+                    /* Stats grid */
+                    .stats-grid {
+                        display: grid;
+                        grid-template-columns: repeat(3, 1fr);
+                        gap: 15px;
+                        margin-top: 10px;
+                    }
+                    
+                    .stat-card {
+                        padding: 18px;
+                        border-radius: 8px;
+                        border: 2px solid;
+                        text-align: center;
+                        page-break-inside: avoid;
+                    }
+                    
+                    .stat-card p:first-child {
+                        font-size: 8pt;
+                        margin: 0;
+                        text-transform: uppercase;
+                        font-weight: 800;
+                        letter-spacing: 0.5px;
+                    }
+                    
+                    .stat-card p:last-child {
+                        font-size: 18pt;
+                        font-weight: 900;
+                        margin: 8px 0 0;
+                    }
+                    
+                    /* Tables */
+                    table { 
+                        width: 100%; 
+                        border-collapse: collapse; 
+                        margin: 12px 0;
+                        page-break-inside: auto;
+                    }
+                    
+                    thead {
+                        display: table-header-group;
+                    }
+                    
+                    tr {
+                        page-break-inside: avoid;
+                        page-break-after: auto;
+                    }
+                    
+                    th, td { 
+                        padding: 10px; 
+                        text-align: left; 
+                        border: 1px solid #d1d5db;
+                        font-size: 9pt;
+                    }
+                    
+                    th { 
+                        background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+                        font-weight: 800;
+                        color: #475569;
+                        text-transform: uppercase;
+                        font-size: 8pt;
+                        letter-spacing: 0.5px;
+                    }
+                    
+                    tbody tr:nth-child(even) {
+                        background: #f9fafb;
+                    }
+                    
+                    tbody td {
+                        border: 1px solid #d1d5db;
+                    }
+                    
+                    /* Print adjustments */
+                    @media print {
+                        body {
+                            -webkit-print-color-adjust: exact;
+                            print-color-adjust: exact;
+                        }
+                        
+                        .report-section {
+                            box-shadow: none;
+                            border: 1px solid #e5e7eb;
+                        }
+                    }
+                </style>
+            </head>
+            <body>
+                ${editableArea.innerHTML}
+            </body>
+            </html>
+        `);
+
+        printWindow.document.close();
+
+        // Wait for content to load, then print
+        setTimeout(() => {
+            printWindow.focus();
+            printWindow.print();
+            printWindow.close();
+            closeReportPreviewModal();
+            showToast('✅ Dokumen telah dihantar ke printer');
+        }, 500);
     };
 
     document.getElementById('saveReportSettingsBtn').onclick = () => {
