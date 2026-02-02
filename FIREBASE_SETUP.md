@@ -1,3 +1,4 @@
+get add .
 # Firebase Google Sign-In Setup Guide
 
 ## 🔍 Debugging Checklist
