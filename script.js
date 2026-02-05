@@ -422,87 +422,12 @@ window.handleGoogleSignIn = async function () {
 
 //form data js untuk bahagian user,admin dan table permohonan form+table
 
+// FORM USER - DISABLING OLD HANDLER (Consolidated at the end)
+/*
 document.getElementById('form-user-permohonan').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    console.log('🚀 User form submitted');
-
-    const btn = document.getElementById('btn-submit-user-permohonan');
-    const originalHTML = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<span class="flex items-center justify-center gap-3"><svg class="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Menghantar...</span>';
-
-    const jenisPermohonan = document.getElementById('user-jenis-permohonan-hidden').value;
-    const itemsDataStr = document.getElementById('user-items-data-hidden').value;
-
-    const data = {
-        type: 'permohonan',
-        nama: document.getElementById('user-nama-pemohon').value,
-        email: document.getElementById('user-email-pemohon').value,
-        nomorTelefon: document.getElementById('user-nombor-telefon').value,
-        cawangan: document.getElementById('user-cawangan').value,
-        jenisPermohonan: jenisPermohonan,
-        items: document.getElementById('user-item-dipinjam-hidden').value || jenisPermohonan,
-        itemsData: itemsDataStr || '',
-        tarikhMulaPinjam: document.getElementById('user-tarikh-mula').value,
-        tarikhPulang: document.getElementById('user-tarikh-pulang').value,
-        tujuan: document.getElementById('user-tujuan').value,
-        status: 'Dalam Proses',
-        catatan: '',
-        createdAt: new Date().toISOString()
-    };
-
-    console.log('ðŸ“¦ User data to save:', data);
-
-    try {
-        const result = await DataStore.add(data);
-
-        if (result.isOk) {
-            // Success message with animation
-            btn.innerHTML = '<span class="flex items-center justify-center gap-3"><svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>✅ Berjaya Dihantar!</span>';
-            btn.classList.remove('from-purple-600', 'to-indigo-600');
-            btn.classList.add('from-green-600', 'to-emerald-600');
-
-            setTimeout(() => {
-                playSuccessSound();
-                // New logic: Hide form, show success state
-                document.getElementById('form-user-permohonan').classList.add('hidden');
-                document.getElementById('user-success-container').classList.remove('hidden');
-
-                // Still reset form for next use
-                document.getElementById('form-user-permohonan').reset();
-                document.querySelectorAll('.user-jenis-btn').forEach(b => {
-                    b.classList.remove('border-purple-600', 'bg-purple-50');
-                    b.classList.add('border-slate-200');
-                });
-                document.getElementById('user-submit-section').classList.add('hidden');
-
-                // Critical: Reset UI logic states
-                toggleUserPermohonanFields();
-                updateUserItemDropdown();
-
-                btn.innerHTML = originalHTML;
-                btn.disabled = false;
-                btn.classList.remove('from-green-600', 'to-emerald-600');
-                btn.classList.add('from-purple-600', 'to-indigo-600');
-            }, 1500);
-
-        } else {
-            throw new Error(result.error || 'Unknown error');
-        }
-    } catch (err) {
-        console.error('❌ Submit Error:', err);
-        btn.innerHTML = '<span class="flex items-center justify-center gap-3">❌ Gagal Dihantar</span>';
-        btn.classList.remove('from-purple-600', 'to-indigo-600');
-        btn.classList.add('from-red-600', 'to-red-700');
-
-        setTimeout(() => {
-            btn.innerHTML = originalHTML;
-            btn.disabled = false;
-            btn.classList.remove('from-red-600', 'to-red-700');
-            btn.classList.add('from-purple-600', 'to-indigo-600');
-        }, 2000);
-    }
+    ...
 });
+*/
 
 // ADMIN FORM HANDLER
 document.getElementById('form-permohonan').addEventListener('submit', async (e) => {
@@ -562,6 +487,99 @@ document.getElementById('form-permohonan').addEventListener('submit', async (e) 
     btn.textContent = 'Hantar Permohonan';
 });
 
+// --- INVENTORY UTILITY ---
+/**
+ * Calculates available stock for a specific item during a specific time period.
+ * @param {string} itemId The __backendId of the equipment
+ * @param {string} startDate ISO string or valid date string
+ * @param {string} endDate ISO string or valid date string
+ * @param {string} excludePermohonanId (Optional) ID of a permohonan to ignore (useful when editing a request)
+ * @returns {number} The remaining units available
+ */
+// Helper to parse dates robustly
+function parseSafeDate(dateStr) {
+    if (!dateStr) return new Date(NaN);
+    if (dateStr instanceof Date) return dateStr;
+
+    // Try standard parsing
+    let d = new Date(dateStr);
+    if (!isNaN(d.getTime())) return d;
+
+    // Try DD/MM/YYYY
+    if (typeof dateStr === 'string' && dateStr.includes('/')) {
+        const parts = dateStr.split(' ')[0].split('/');
+        if (parts.length === 3) {
+            // Assume DD/MM/YYYY
+            d = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+            if (!isNaN(d.getTime())) return d;
+        }
+    }
+    return new Date(NaN);
+}
+
+function getAvailableStock(itemId, startDate = null, endDate = null, excludePermohonanId = null) {
+    const p = allData.find(d => d.type === 'peralatan' && String(d.__backendId) === String(itemId));
+    if (!p) return 0;
+
+    let unitsInUse = 0;
+    const totalStock = parseInt(p.kuantiti) || 0;
+
+    const start = parseSafeDate(startDate);
+    const end = parseSafeDate(endDate);
+
+    const hasDates = !isNaN(start.getTime()) && !isNaN(end.getTime());
+
+    // Filter permohonan that should deduct stock
+    const activePermohonan = allData.filter(d =>
+        d.type === 'permohonan' &&
+        !['selesai', 'ditolak', 'dibatalkan'].includes((d.status || '').toLowerCase()) &&
+        String(d.__backendId) !== String(excludePermohonanId)
+    );
+
+    activePermohonan.forEach(req => {
+        let shouldDeduct = false;
+
+        if (hasDates) {
+            const reqStart = parseSafeDate(req.tarikhMulaPinjam);
+            const reqEnd = parseSafeDate(req.tarikhPulang);
+            if (!isNaN(reqStart.getTime()) && !isNaN(reqEnd.getTime())) {
+                // Standard overlap: StartA < EndB AND EndA > StartB
+                if (start < reqEnd && end > reqStart) {
+                    shouldDeduct = true;
+                }
+            }
+        } else {
+            // If no dates provided, we count it if it's "Active"
+            shouldDeduct = true;
+        }
+
+        if (shouldDeduct) {
+            try {
+                const itemsData = req.itemsData;
+                if (itemsData) {
+                    const items = (typeof itemsData === 'string') ? JSON.parse(itemsData) : itemsData;
+                    if (Array.isArray(items)) {
+                        const match = items.find(i => String(i.id) === String(itemId));
+                        if (match) {
+                            unitsInUse += parseInt(match.qty) || 0;
+                        }
+                    }
+                } else if (req.items && req.items.includes(p.namaPeralatan)) {
+                    // Fallback for old data without itemsData (very basic)
+                    // If the item name is in the string, assume 1 unit if we can't parse more
+                    const match = req.items.match(new RegExp(`${p.namaPeralatan}\\s*\\((\\d+)\\s*unit\\)`, 'i'));
+                    unitsInUse += match ? parseInt(match[1]) : 1;
+                }
+            } catch (e) {
+                console.warn('Inventory calc deduction error:', e);
+            }
+        }
+    });
+
+    const baki = totalStock - unitsInUse;
+    return Math.max(0, baki);
+}
+
 // Data Persistence & Storage - with Google Sheets Sync
 const DataStore = {
     key: 'dewanData',
@@ -593,19 +611,23 @@ const DataStore = {
         data.push(item);
         this.save(data);
 
-        // Sync to Google Sheets (async, non-blocking)
+        // Sync to Google Sheets (Wait for it to ensure consistency)
         if (this.syncEnabled && GoogleSheetsDB.isConfigured()) {
-            GoogleSheetsDB.add(item.type, item).catch(err => {
+            try {
+                await GoogleSheetsDB.add(item.type, item);
+            } catch (err) {
                 console.warn('⚠️ Google Sheets sync failed (add):', err);
-            });
+            }
         }
 
-        return Promise.resolve({ isOk: true });
+        return { isOk: true };
     },
 
     update: async function (id, updatedItem) {
         let data = this.get();
-        const index = data.findIndex(d => d.__backendId === id);
+        // Convert id to string for consistent comparison
+        const targetId = String(id);
+        const index = data.findIndex(d => String(d.__backendId) === targetId);
 
         if (index !== -1) {
             const oldType = data[index].type;
@@ -613,7 +635,8 @@ const DataStore = {
             this.save(data);
 
             if (this.syncEnabled && GoogleSheetsDB.isConfigured()) {
-                GoogleSheetsDB.update(oldType || updatedItem.type, id, data[index]).catch(err => {
+                // Ensure we send the correct string ID to backend
+                GoogleSheetsDB.update(oldType || updatedItem.type, targetId, data[index]).catch(err => {
                     console.warn('⚠️ Google Sheets sync failed (update):', err);
                 });
             }
@@ -645,13 +668,17 @@ const DataStore = {
 
         // Sync to Google Sheets
         if (this.syncEnabled && GoogleSheetsDB.isConfigured()) {
-            // Delete from Sheets regardless of local finding (in case local was already gone but remote exists)
-            GoogleSheetsDB.delete(itemType, targetId).catch(err => {
+            try {
+                // Wait for Sheets to confirm deletion before we consider it "done"
+                // This prevents the real-time sync from fetching the old row back
+                await GoogleSheetsDB.delete(itemType, targetId);
+            } catch (err) {
                 console.warn('⚠️ Google Sheets sync failed (delete):', err);
-            });
+                // We still returned success locally, but it might reappear on sync
+            }
         }
 
-        return Promise.resolve({ isOk: true });
+        return { isOk: true };
     },
 
     notify: function () {
@@ -962,17 +989,28 @@ window.addEventListener('DOMContentLoaded', () => {
         });
 
         if (isUserMode) {
+            console.log('🚀 User Mode Activated');
             // User Mode: Hide Login & Admin App, Show User Form ONLY
             const loginPage = document.getElementById('login-page');
             const appPage = document.getElementById('app');
-            if (loginPage) loginPage.classList.add('hidden');
-            if (appPage) appPage.classList.add('hidden');
+
+            if (loginPage) {
+                loginPage.classList.add('hidden');
+                loginPage.style.setProperty('display', 'none', 'important');
+            }
+            if (appPage) {
+                appPage.classList.add('hidden');
+                appPage.style.setProperty('display', 'none', 'important');
+            }
 
             const userModal = document.getElementById('modal-user-form');
             if (userModal) {
                 userModal.classList.remove('hidden');
+                userModal.style.display = 'flex'; // Ensure it's visible (flex for centering)
                 const closeBtn = userModal.querySelector('button[onclick="closeUserForm()"]');
                 if (closeBtn) closeBtn.style.display = 'none';
+            } else {
+                console.error('❌ modal-user-form NOT FOUND');
             }
             document.body.classList.add('user-mode');
 
@@ -1043,9 +1081,9 @@ window.handleLogin = async function () {
         }
     }
     // Try Firebase auth first when available
-    if (auth && firebaseInitialized) {
+    if (window.auth && window.firebaseInitialized) {
         try {
-            const res = await auth.signInWithEmailAndPassword(username, password);
+            const res = await window.auth.signInWithEmailAndPassword(username, password);
             console.log('✅ Firebase login success:', res.user.email);
             localStorage.setItem('isLoggedIn', 'true');
             restoreSubmit();
@@ -1133,8 +1171,8 @@ function logout() {
     if (passwordInput) passwordInput.value = '';
 
     // Firebase Sign Out (if available)
-    if (auth && firebaseInitialized) {
-        auth.signOut()
+    if (window.auth && window.firebaseInitialized) {
+        window.auth.signOut()
             .then(() => {
                 console.log('✅ Firebase signed out');
             })
@@ -1209,7 +1247,13 @@ window.addEventListener('hashchange', () => {
 
 // Modal functions with refined background blur
 function openModal(id) {
-    document.getElementById(id).classList.remove('hidden');
+    console.log('🔓 Opening modal:', id);
+    const el = document.getElementById(id);
+    if (!el) {
+        console.error('❌ Modal element not found:', id);
+        return;
+    }
+    el.classList.remove('hidden');
     // Blur everything behind
     const app = document.getElementById('app');
     const login = document.getElementById('login-page');
@@ -1405,6 +1449,9 @@ function renderPermohonan() {
 
         return `
         <tr class="hover:bg-slate-50">
+          <!-- No Rujukan Column -->
+          <td class="px-6 py-4 text-indigo-900 font-mono text-xs font-bold">${p.noPermohonan || '-'}</td>
+          
           <td class="px-6 py-4">
             <div class="flex items-center gap-3">
               <div class="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-semibold text-sm">
@@ -1430,8 +1477,8 @@ function renderPermohonan() {
               <button onclick="openDeleteModal('${p.__backendId}', 'permohonan')" class="text-red-600 hover:text-red-800 text-sm font-medium">Padam</button>
             </div>
           </td>
-        </tr>
-      `}).join('');
+        </tr >
+            `}).join('');
 }
 
 function formatDate(dateStr) {
@@ -1465,7 +1512,7 @@ function renderKategori() {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
               </svg>
             </div>
-            <span class="font-medium text-slate-800">${k.nama || '-'}</span>
+            <span class="font-medium text-slate-800">${k.namaKategori || k.nama || '-'}</span>
           </div>
           <button onclick="openDeleteModal('${k.__backendId}', 'kategori')" class="text-red-500 hover:text-red-700">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1473,7 +1520,7 @@ function renderKategori() {
             </svg>
           </button>
         </div>
-      `).join('');
+            `).join('');
 }
 
 // Render peralatan
@@ -1495,11 +1542,11 @@ function renderPeralatan() {
     }
 
     container.innerHTML = peralatan.map(p => {
-        const kat = kategori.find(k => k.__backendId === p.kategoriId);
-        const tersedia = p.kuantitiTersedia !== undefined ? p.kuantitiTersedia : p.kuantiti;
-        const statusColor = tersedia > 0 ? 'text-green-600' : 'text-red-600';
+        const kat = kategori.find(k => k.__backendId === p.kategori);
+        const bakiSekarang = getAvailableStock(p.__backendId);
+        const statusColor = bakiSekarang > 0 ? 'text-green-600' : 'text-red-600';
         return `
-          <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+        <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
             <div class="flex items-center gap-3">
               <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
                 <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1508,8 +1555,8 @@ function renderPeralatan() {
               </div>
               <div>
                 <p class="font-medium text-slate-800">${p.namaPeralatan || '-'}</p>
-                <p class="text-sm text-slate-500">${kat ? kat.nama : 'Tiada Kategori'}</p>
-                <p class="text-xs ${statusColor} font-semibold mt-1">Tersedia: ${tersedia}/${p.kuantiti || 0} unit</p>
+                <p class="text-sm text-slate-500">${kat ? kat.namaKategori || kat.nama : 'Tiada Kategori'}</p>
+                <p class="text-xs ${statusColor} font-semibold mt-1">Baki Sekarang: ${bakiSekarang}/${p.kuantiti || 0} unit</p>
               </div>
             </div>
             <button onclick="openDeleteModal('${p.__backendId}', 'peralatan')" class="text-red-500 hover:text-red-700">
@@ -1518,7 +1565,7 @@ function renderPeralatan() {
               </svg>
             </button>
           </div>
-        `;
+            `;
     }).join('');
 }
 
@@ -1530,12 +1577,18 @@ function updateItemDropdown() {
         return;
     }
 
-    console.log('âœ… Found container:', container);
+    // Save currently checked items and their quantities
+    const checkedItems = {};
+    container.querySelectorAll('input.item-checkbox:checked').forEach(cb => {
+        const id = cb.dataset.id;
+        const qtyVal = document.getElementById(`qty-${id}`)?.value || "1";
+        checkedItems[id] = qtyVal;
+    });
 
     const peralatan = getPeralatan();
     const kategori = getKategori();
-
-    console.log('ï¿½ï¿½ï¿½ Peralatan:', peralatan.length);
+    const start = document.getElementById('tarikh-mula').value;
+    const end = document.getElementById('tarikh-pulang').value;
 
     if (peralatan.length === 0) {
         container.innerHTML = '<p class="text-slate-400 text-sm text-center py-4">Tiada peralatan tersedia</p>';
@@ -1543,29 +1596,39 @@ function updateItemDropdown() {
     }
 
     container.innerHTML = peralatan.map(p => {
-        const kat = kategori.find(k => k.__backendId === p.kategoriId);
-        const tersedia = p.kuantitiTersedia !== undefined ? p.kuantitiTersedia : p.kuantiti;
+        const kat = kategori.find(k => k.__backendId === p.kategori);
+        const tersedia = getAvailableStock(p.__backendId, start, end);
         const isAvailable = tersedia > 0;
+        const wasChecked = checkedItems[p.__backendId] !== undefined;
+
+        // If item was checked, its quantity should be added to available stock for validation purposes
+        // This allows the user to keep their selection even if the available stock changes slightly
+        const maxQtyForValidation = tersedia + (wasChecked ? parseInt(checkedItems[p.__backendId]) : 0);
+
         return `
-          <div class="border border-slate-200 rounded-lg p-3 bg-white">
+        <div class="border border-slate-200 rounded-lg p-3 bg-white">
             <label class="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" value="${p.namaPeralatan}" data-id="${p.__backendId}" onchange="toggleQuantityInput('${p.__backendId}')" class="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-2 focus:ring-indigo-500" ${!isAvailable ? 'disabled' : ''}>
+              <input type="checkbox" value="${p.namaPeralatan}" data-id="${p.__backendId}" 
+                onchange="toggleQuantityInput('${p.__backendId}')" 
+                class="item-checkbox w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-2 focus:ring-indigo-500" 
+                ${!isAvailable && !wasChecked ? 'disabled' : ''} ${wasChecked ? 'checked' : ''}>
               <div class="flex-1">
                 <span class="text-slate-700 font-medium">${p.namaPeralatan}</span>
-                <span class="text-slate-500 text-sm ml-2">(${kat ? kat.nama : '-'})</span>
-                <span class="block text-xs ${isAvailable ? 'text-green-600' : 'text-red-600'} font-semibold mt-1">Tersedia: ${tersedia}/${p.kuantiti || 0} unit</span>
+                <span class="text-slate-500 text-sm ml-2">(${kat ? kat.namaKategori || kat.nama : '-'})</span>
+                <span class="block text-xs ${isAvailable ? 'text-green-600' : 'text-red-600'} font-semibold mt-1">Baki: ${tersedia}/${p.kuantiti || 0} unit</span>
               </div>
             </label>
-            <div id="qty-input-${p.__backendId}" class="hidden mt-3 pl-7">
+            <div id="qty-input-${p.__backendId}" class="${wasChecked ? '' : 'hidden'} mt-3 pl-7">
               <label class="block text-xs font-medium text-slate-700 mb-1">Kuantiti Dipinjam</label>
-              <input type="number" id="qty-${p.__backendId}" min="1" max="${tersedia}" value="1" onchange="validateQuantity('${p.__backendId}', ${tersedia})" oninput="validateQuantity('${p.__backendId}', ${tersedia})" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Masukkan kuantiti">
-              <p id="qty-error-${p.__backendId}" class="hidden text-xs text-red-600 mt-1 font-medium">âš ï¸ Kuantiti melebihi stok tersedia (Maks: ${tersedia} unit)</p>
+              <input type="number" id="qty-${p.__backendId}" min="1" max="${maxQtyForValidation}" 
+                value="${wasChecked ? checkedItems[p.__backendId] : 1}" 
+                onchange="validateQuantity('${p.__backendId}', ${maxQtyForValidation})" 
+                oninput="validateQuantity('${p.__backendId}', ${maxQtyForValidation})" 
+                class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
             </div>
           </div>
-        `;
+            `;
     }).join('');
-
-    console.log('âœ… Updated container HTML successfully');
 }
 
 function toggleQuantityInput(id) {
@@ -1591,7 +1654,7 @@ function validateQuantity(id, maxQty) {
         input.classList.remove('border-slate-200', 'focus:ring-indigo-500', 'focus:border-indigo-500');
         error.classList.remove('hidden');
         input.value = maxQty;
-    } else if (value < 1) {
+    } else if (value < 1 && input.value !== "") {
         input.value = 1;
         input.classList.remove('border-red-500', 'focus:ring-red-500', 'focus:border-red-500');
         input.classList.add('border-slate-200', 'focus:ring-indigo-500', 'focus:border-indigo-500');
@@ -1601,7 +1664,6 @@ function validateQuantity(id, maxQty) {
         input.classList.add('border-slate-200', 'focus:ring-indigo-500', 'focus:border-indigo-500');
         error.classList.add('hidden');
     }
-
     updateSelectedItems();
 }
 
@@ -1624,6 +1686,11 @@ function updateSelectedItems() {
     document.getElementById('items-data-hidden').value = JSON.stringify(itemsData);
 
     // Check date overlap when items change
+    checkDateOverlap();
+}
+
+function refreshAdminInventoryDisplay() {
+    updateItemDropdown();
     checkDateOverlap();
 }
 
@@ -1677,53 +1744,23 @@ function checkDateOverlap() {
         }
     }
 
-    // Check Peralatan availability (Simple Check: if item in use)
+    // Check Peralatan availability using central utility
     if (hasPeralatan && !hasConflict) {
         const selectedItemsData = document.getElementById('items-data-hidden').value;
         if (selectedItemsData) {
-            const itemsData = JSON.parse(selectedItemsData);
-
-            for (const item of itemsData) {
-                const peralatan = allData.find(d => d.__backendId === item.id);
-                if (!peralatan) continue;
-
-                let unitsInUse = 0;
-                const peralatanPermohonan = allData.filter(d =>
-                    d.type === 'permohonan' &&
-                    d.itemsData &&
-                    (d.status === 'Dalam Proses' || d.status === 'Diluluskan')
-                );
-
-                for (const permohonan of peralatanPermohonan) {
-                    const existingStart = new Date(permohonan.tarikhMulaPinjam);
-                    const existingEnd = new Date(permohonan.tarikhPulang);
-
-                    // Calculate end of existing booking day (next day midnight)
-                    const existingEndMidnight = new Date(existingEnd);
-                    existingEndMidnight.setDate(existingEndMidnight.getDate() + 1);
-                    existingEndMidnight.setHours(0, 0, 0, 0);
-
-                    // Check overlap: new start < existing end midnight AND new end > existing start
-                    if (startDate < existingEndMidnight && endDate > existingStart) {
-                        try {
-                            const permohonanItems = JSON.parse(permohonan.itemsData);
-                            const usedItem = permohonanItems.find(i => i.id === item.id);
-                            if (usedItem) {
-                                unitsInUse += usedItem.qty;
-                            }
-                        } catch (e) {
-                            console.error('Error parsing itemsData:', e);
-                        }
+            try {
+                const itemsData = JSON.parse(selectedItemsData);
+                for (const item of itemsData) {
+                    const availableDuringPeriod = getAvailableStock(item.id, startDate, endDate);
+                    if (item.qty > availableDuringPeriod) {
+                        hasConflict = true;
+                        const p = allData.find(d => d.__backendId === item.id);
+                        const total = p ? (p.kuantiti || 0) : 0;
+                        conflictMessages.push(`⚠️ ${item.name} tidak mencukupi pada tarikh tersebut. Baki: ${availableDuringPeriod}/${total} unit. Sila pilih tarikh lain.`);
                     }
                 }
-
-                const totalAvailable = peralatan.kuantiti || 0;
-                const availableDuringPeriod = totalAvailable - unitsInUse;
-
-                if (item.qty > availableDuringPeriod) {
-                    hasConflict = true;
-                    conflictMessages.push(`📦 ${item.name} tidak mencukupi (Tersedia: ${availableDuringPeriod}).`);
-                }
+            } catch (e) {
+                console.error('Error checking peralatan conflict:', e);
             }
         }
     }
@@ -1792,7 +1829,7 @@ function checkUserDateOverlap() {
             // New booking start should be on or after existing booking end midnight
             if (startDate < existingEndMidnight && endDate > existingStart) {
                 hasConflict = true;
-                conflictMessages.push(`🏛️ Dewan telah ditempah pada ${formatDate(p.tarikhMulaPinjam)} - ${formatDate(p.tarikhPulang)}. Sila pilih tarikh/waktu lain.`);
+                conflictMessages.push(`🏛️ Dewan telah ditempah pada ${formatDate(p.tarikhMulaPinjam)} - ${formatDate(p.tarikhPulang)}. Sila pilih tarikh / waktu lain.`);
                 break;
             }
         }
@@ -1866,12 +1903,20 @@ function updateKategoriDropdown() {
     const kategori = getKategori();
 
     select.innerHTML = '<option value="">Pilih Kategori</option>' +
-        kategori.map(k => `<option value="${k.__backendId}">${k.nama}</option>`).join('');
+        kategori.map(k => `<option value="${k.__backendId}">${k.namaKategori || k.nama || 'Tiada Nama'}</option>`).join('');
 }
 
 function updateUserItemDropdown() {
     const container = document.getElementById('user-item-dipinjam-container');
     if (!container) return;
+
+    // Save currently checked items and their quantities
+    const checkedItems = {};
+    container.querySelectorAll('input.user-item-checkbox:checked').forEach(cb => {
+        const id = cb.dataset.id;
+        const qtyVal = document.getElementById(`user-qty-${id}`)?.value || "1";
+        checkedItems[id] = qtyVal;
+    });
 
     const peralatan = getPeralatan();
     const kategori = getKategori();
@@ -1884,70 +1929,40 @@ function updateUserItemDropdown() {
     }
 
     container.innerHTML = peralatan.map(p => {
-        const kat = kategori.find(k => k.__backendId === p.kategoriId);
-        let unitsInUse = 0;
-
-        // Calculate availability if dates are selected
-        if (tarikhMula && tarikhPulang) {
-            const start = new Date(tarikhMula);
-            const end = new Date(tarikhPulang);
-            const activePermohonan = allData.filter(d =>
-                d.type === 'permohonan' &&
-                (d.status === 'Dalam Proses' || d.status === 'Diluluskan') &&
-                d.itemsData
-            );
-
-            activePermohonan.forEach(req => {
-                const reqStart = new Date(req.tarikhMulaPinjam);
-                const reqEnd = new Date(req.tarikhPulang);
-
-                // Calculate end of existing booking day (next day midnight)
-                const reqEndMidnight = new Date(reqEnd);
-                reqEndMidnight.setDate(reqEndMidnight.getDate() + 1);
-                reqEndMidnight.setHours(0, 0, 0, 0);
-
-                // Check overlap: new start < existing end midnight AND new end > existing start
-                if (start < reqEndMidnight && end > reqStart) {
-                    try {
-                        const items = JSON.parse(req.itemsData);
-                        const match = items.find(i => i.id === p.__backendId);
-                        if (match) unitsInUse += match.qty;
-                    } catch (e) { }
-                }
-            });
-        }
-
+        const kat = kategori.find(k => k.__backendId === p.kategori);
+        const available = getAvailableStock(p.__backendId, tarikhMula, tarikhPulang);
         const totalStock = p.kuantiti || 0;
-        const available = totalStock - unitsInUse;
-        const isAvailable = available > 0;
+        const wasChecked = checkedItems[p.__backendId] !== undefined;
+        const isAvailable = available > 0 || wasChecked;
         const statusColor = isAvailable ? 'text-green-600' : 'text-red-600';
 
         return `
-          <div class="border-2 border-slate-200 rounded-xl p-4 bg-white hover:border-purple-300 transition-colors ${!isAvailable ? 'opacity-60 bg-slate-50' : ''}">
+    <div class="border-2 border-slate-200 rounded-xl p-4 bg-white hover:border-purple-300 transition-colors ${!isAvailable ? 'opacity-60 bg-slate-50' : ''}">
             <label class="flex items-center gap-3 ${isAvailable ? 'cursor-pointer' : 'cursor-not-allowed'}">
               <input type="checkbox" value="${p.namaPeralatan}" data-id="${p.__backendId}" 
                 onchange="toggleUserQtyInput('${p.__backendId}')" 
                 class="user-item-checkbox w-5 h-5 text-purple-600 border-slate-300 rounded focus:ring-2 focus:ring-purple-500" 
-                ${!isAvailable ? 'disabled' : ''}>
+                ${!isAvailable ? 'disabled' : ''} ${wasChecked ? 'checked' : ''}>
               <div class="flex-1">
                 <span class="text-slate-800 font-semibold">${p.namaPeralatan}</span>
-                <span class="text-slate-500 text-sm ml-2">(${kat ? kat.nama : '-'})</span>
+                <span class="text-slate-500 text-sm ml-2">(${kat ? kat.namaKategori || kat.nama : '-'})</span>
                 <span class="block text-xs ${statusColor} font-bold mt-1">
-                    ${isAvailable ? `Tersedia: ${available} unit` : 'Tiada Stok Tersedia'}
+                    ${available > 0 ? `Baki Tersedia: ${available}/${totalStock} unit` : 'Tiada Stok Tersedia'}
                 </span>
               </div>
             </label>
-            <div id="user-qty-input-${p.__backendId}" class="hidden mt-3 pl-8">
-                <label class="block text-xs font-medium text-slate-700 mb-1">Kuantiti Dipinjam (Maks: ${available})</label>
-                <input type="number" id="user-qty-${p.__backendId}" min="1" max="${available}" value="1" 
-                    oninput="validateUserQty('${p.__backendId}', ${available})" 
+            <div id="user-qty-input-${p.__backendId}" class="${wasChecked ? '' : 'hidden'} mt-3 pl-8">
+                <label class="block text-xs font-medium text-slate-700 mb-1">Kuantiti Dipinjam (Maks: ${available + (wasChecked ? parseInt(checkedItems[p.__backendId]) : 0)})</label>
+                <input type="number" id="user-qty-${p.__backendId}" min="1" max="${available + (wasChecked ? parseInt(checkedItems[p.__backendId]) : 0)}" 
+                    value="${wasChecked ? checkedItems[p.__backendId] : 1}" 
+                    oninput="validateUserQty('${p.__backendId}', ${available + (wasChecked ? parseInt(checkedItems[p.__backendId]) : 0)})" 
                     class="w-full px-3 py-2 border-2 border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
                 <p id="user-qty-error-${p.__backendId}" class="hidden text-[10px] text-red-600 mt-1 font-bold animate-pulse">
                     ⚠️ Kuantiti melebihi baki stok yang tersedia!
                 </p>
             </div>
           </div>
-        `;
+    `;
     }).join('');
 }
 
@@ -1968,14 +1983,19 @@ function validateUserQty(id, max) {
     let val = parseInt(input.value) || 0;
 
     if (val > max) {
+        input.value = max;
         input.classList.add('border-red-500', 'bg-red-50', 'text-red-900');
         input.classList.remove('border-slate-200', 'bg-white');
         error.classList.remove('hidden');
+    } else if (val < 1 && input.value !== "") {
+        input.value = 1;
+        input.classList.remove('border-red-500', 'bg-red-50', 'text-red-900');
+        input.classList.add('border-slate-200', 'bg-white');
+        error.classList.add('hidden');
     } else {
         input.classList.remove('border-red-500', 'bg-red-50', 'text-red-900');
         input.classList.add('border-slate-200', 'bg-white');
         error.classList.add('hidden');
-        if (val < 1 && input.value !== "") input.value = 1;
     }
     updateUserSelectedItems();
 }
@@ -2165,6 +2185,11 @@ function updateUserSelectedItems() {
     checkUserDateOverlap();
 }
 
+function refreshUserInventoryDisplay() {
+    updateUserItemDropdown();
+    checkUserDateOverlap();
+}
+
 function checkUserDateOverlap() {
     const tarikhMula = document.getElementById('user-tarikh-mula').value;
     const tarikhPulang = document.getElementById('user-tarikh-pulang').value;
@@ -2242,7 +2267,7 @@ function checkUserDateOverlap() {
 
                 if (item.qty > availableDuringPeriod) {
                     hasConflict = true;
-                    conflictMessages.push(`ðŸ“¦ ${item.name} tidak mencukupi pada tarikh tersebut. Tersedia: ${availableDuringPeriod} unit. Sila pilih tarikh lain.`);
+                    conflictMessages.push(`⚠️ ${item.name} tidak mencukupi pada tarikh tersebut. Tersedia: ${availableDuringPeriod} unit. Sila pilih tarikh lain.`);
                 }
             }
         }
@@ -2258,10 +2283,20 @@ function checkUserDateOverlap() {
 
 // Sharelink functions
 function showSharelinkInfo() {
+    console.log('🔗 showSharelinkInfo called');
     // Current URL minus anything from ? or # onwards
     const currentURL = window.location.origin + window.location.pathname;
     const sharelinkURL = `${currentURL}?user=true`;
-    document.getElementById('sharelink-url').value = sharelinkURL;
+    console.log('🔗 Generated Link:', sharelinkURL);
+
+    const input = document.getElementById('sharelink-url');
+    if (input) {
+        input.value = sharelinkURL;
+    } else {
+        console.error('❌ Element #sharelink-url not found');
+    }
+
+    console.log('🔗 Opening modal-sharelink');
     openModal('modal-sharelink');
 }
 
@@ -2284,37 +2319,8 @@ function copySharelink() {
 }
 
 // Check if user came from sharelink
-window.addEventListener('DOMContentLoaded', () => {
-    // Refresh Data UI
-    DataStore.notify();
-
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('user') === 'true') {
-        // User Mode: Hide Login & Admin App, Show User Form ONLY
-        document.getElementById('login-page').classList.add('hidden');
-        document.getElementById('app').classList.add('hidden');
-
-        // Open user form and prevent closing
-        const userModal = document.getElementById('modal-user-form');
-        userModal.classList.remove('hidden');
-
-        // Hide close button in user mode to force focus on form
-        const closeBtn = userModal.querySelector('button[onclick="closeUserForm()"]');
-        if (closeBtn) closeBtn.style.display = 'none';
-
-        // Add special class for user mode styling if needed
-        document.body.classList.add('user-mode');
-
-    } else if (localStorage.getItem('isLoggedIn') === 'true') {
-        // Admin Mode (Logged In)
-        isLoggedIn = true;
-        document.getElementById('login-page').classList.add('hidden');
-        document.getElementById('app').classList.remove('hidden');
-
-        const lastPage = localStorage.getItem('lastPage') || 'dashboard';
-        showPage(lastPage);
-    }
-});
+// Redundant DOMContentLoaded listener removed - initialization logic is handled at the top of the file
+// See line ~947 window.addEventListener('DOMContentLoaded', ...)
 
 // Admin Form Selection Handlers
 function selectJenisPermohonan(value, button) {
@@ -2501,38 +2507,40 @@ function populateItemsEditContainer(permohonan) {
     }
 
     container.innerHTML = peralatan.map((p, idx) => {
-        const selected = selectedItems.find(item => item.name === p.namaPeralatan);
-        const qty = selected ? selected.qty : 0;
-        const tersedia = Math.max(0, parseInt(p.kuantitiTersedia) || 0);
-        const isAvailable = tersedia > 0;
+        const selected = selectedItems.find(item => String(item.id) === String(p.__backendId));
+        const qty = selected ? (parseInt(selected.qty) || 0) : 0;
+
+        // Calculate availability excluding current request items
+        const bakiTersedia = getAvailableStock(p.__backendId, permohonan.tarikhMulaPinjam, permohonan.tarikhPulang, permohonan.__backendId);
+        const isAvailable = bakiTersedia > 0;
 
         return `
-            <div class="border border-slate-300 rounded-lg p-4 bg-white hover:bg-slate-50 transition-colors">
-                <div class="flex items-start gap-4">
-                    <div class="flex items-center pt-1">
-                        <input type="checkbox" id="item-tindakan-${p.__backendId}" class="item-tindakan-checkbox w-5 h-5 cursor-pointer"
-                            data-name="${p.namaPeralatan}" ${selected ? 'checked' : ''} onchange="updateTindakanItemsDisplay()">
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <label for="item-tindakan-${p.__backendId}" class="cursor-pointer block">
-                            <p class="font-bold text-slate-800 text-base">${idx + 1}. ${p.namaPeralatan}</p>
-                            <p class="text-xs ${isAvailable ? 'text-green-600' : 'text-red-600'} font-semibold mt-1">Stok Tersedia: ${tersedia} unit</p>
-                        </label>
-                    </div>
-                    <div class="flex items-center gap-2 flex-shrink-0">
-                        <input type="number" id="qty-tindakan-${p.__backendId}" min="1" max="${tersedia}" value="${selected ? qty : 1}"
-                            class="item-tindakan-qty w-20 px-3 py-2 border border-slate-300 rounded-lg text-center text-sm font-medium" ${selected ? '' : 'disabled'}>
-                        <span class="text-sm text-slate-600 font-medium min-w-[40px]">unit</span>
-                    </div>
-                </div>
+    <div class="border border-slate-300 rounded-lg p-4 bg-white hover:bg-slate-50 transition-colors">
+        <div class="flex items-start gap-4">
+            <div class="flex items-center pt-1">
+                <input type="checkbox" id="item-tindakan-${p.__backendId}" class="item-tindakan-checkbox w-5 h-5 cursor-pointer"
+                    data-name="${p.namaPeralatan}" ${selected ? 'checked' : ''}>
             </div>
-        `;
+            <div class="flex-1 min-w-0">
+                <label for="item-tindakan-${p.__backendId}" class="cursor-pointer block">
+                    <p class="font-bold text-slate-800 text-base">${idx + 1}. ${p.namaPeralatan}</p>
+                    <p class="text-xs ${isAvailable ? 'text-green-600' : 'text-red-600'} font-semibold mt-1">Baki Stok (Luar Permohonan Ini): ${bakiTersedia} unit</p>
+                </label>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0">
+                <input type="number" id="qty-tindakan-${p.__backendId}" min="1" value="${selected ? qty : 1}"
+                    class="item-tindakan-qty w-20 px-3 py-2 border border-slate-300 rounded-lg text-center text-sm font-medium" ${selected ? '' : 'disabled'}>
+                    <span class="text-sm text-slate-600 font-medium min-w-[40px]">unit</span>
+            </div>
+        </div>
+    </div>
+    `;
     }).join('');
 
     // Re-attach event listeners
     document.querySelectorAll('.item-tindakan-checkbox').forEach(checkbox => {
         checkbox.addEventListener('change', function () {
-            const qty = document.getElementById(`qty-tindakan-${this.dataset.name.split('###')[0]}`);
+            const qty = document.getElementById(`qty-tindakan-${this.id.replace('item-tindakan-', '')}`);
             if (qty) qty.disabled = !this.checked;
             updateTindakanItemsDisplay();
         });
@@ -2543,9 +2551,9 @@ function populateItemsEditContainer(permohonan) {
 function updateTindakanItemsDisplay() {
     const selected = [];
     document.querySelectorAll('.item-tindakan-checkbox:checked').forEach(checkbox => {
+        const id = checkbox.id.replace('item-tindakan-', '');
         const name = checkbox.dataset.name;
-        // Find the corresponding qty input
-        const qtyInput = document.querySelector(`input.item-tindakan-qty[data-name="${name}"]`);
+        const qtyInput = document.getElementById(`qty-tindakan-${id}`);
         if (!qtyInput) {
             // Try by finding the container and looking for qty input
             const container = checkbox.closest('div[class*="flex items-center"]');
@@ -2612,31 +2620,35 @@ function quickMarkCompleted(id) {
 }
 
 // Handle Tindakan Submit
-document.getElementById('form-tindakan').addEventListener('submit', (e) => {
+document.getElementById('form-tindakan').addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = document.getElementById('tindakan-id').value;
     const status = document.getElementById('status-permohonan').value;
     const catatan = document.getElementById('catatan-admin').value;
 
-    const data = allData.find(d => d.__backendId === id);
+    const data = allData.find(d => String(d.__backendId) === String(id));
     if (data) {
-        data.status = status;
-        data.catatan = catatan;
+        // Create update object
+        const updates = {
+            status: status,
+            catatan: catatan
+        };
 
         // Update items if edited (for Peralatan permohonan)
         if (window.tindakanSelectedItems && window.tindakanSelectedItems.length > 0) {
-            data.itemsData = JSON.stringify(window.tindakanSelectedItems);
+            updates.itemsData = JSON.stringify(window.tindakanSelectedItems);
             const itemNames = window.tindakanSelectedItems.map(item => `${item.name} (${item.qty} unit)`).join(', ');
-            data.items = itemNames;
+            updates.items = itemNames;
         }
 
         // If status is set to "Selesai", mark statusSelesai as true and record completion time
         if (status === 'Selesai' && !data.statusSelesai) {
-            data.statusSelesai = true;
-            data.tarikhSelesai = new Date().toISOString();
+            updates.statusSelesai = true;
+            updates.tarikhSelesai = new Date().toISOString();
         }
 
-        DataStore.save(allData); // Save updated array
+        // Use DataStore.update to ensure sync
+        await DataStore.update(id, updates);
 
         showToast('Status permohonan dikemaskini!');
         closeModal('modal-tindakan');
@@ -2645,6 +2657,8 @@ document.getElementById('form-tindakan').addEventListener('submit', (e) => {
         updateDashboard();
         renderPermohonan();
         renderLaporan(); // Update reports
+    } else {
+        showToast('❌ Ralat: Data tidak dijumpai');
     }
 });
 
@@ -2686,77 +2700,6 @@ function confirmDelete() {
 }
 
 
-// --- FORM HANDLERS (Kategori & Peralatan) ---
-// Form Kategori
-document.getElementById('form-kategori').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    console.log('🚀 Submitting Kategori Form');
-    const btn = document.getElementById('btn-submit-kategori');
-    const originalText = btn.textContent;
-    btn.textContent = 'Menyimpan...';
-    btn.disabled = true;
-
-    const nama = document.getElementById('nama-kategori').value;
-    if (!nama) {
-        showToast('Sila masukkan nama kategori');
-        btn.textContent = originalText;
-        btn.disabled = false;
-        return;
-    }
-
-    const data = {
-        type: 'kategori',
-        nama: nama,
-        createdAt: new Date().toISOString()
-    };
-
-    await DataStore.add(data);
-    showToast('Kategori berjaya ditambah');
-    closeModal('modal-kategori');
-    document.getElementById('form-kategori').reset();
-
-    btn.textContent = originalText;
-    btn.disabled = false;
-});
-
-// Form Peralatan
-document.getElementById('form-peralatan').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    console.log('🚀 Submitting Peralatan Form');
-    const btn = document.getElementById('btn-submit-peralatan');
-    const originalText = btn.textContent;
-    btn.textContent = 'Menyimpan...';
-    btn.disabled = true;
-
-    const nama = document.getElementById('nama-peralatan').value;
-    const kategoriId = document.getElementById('kategori-peralatan').value;
-    const kuantiti = parseInt(document.getElementById('kuantiti-peralatan').value) || 0;
-
-    if (!nama || !kategoriId || kuantiti < 1) {
-        showToast('Sila lengkapkan semua maklumat');
-        btn.textContent = originalText;
-        btn.disabled = false;
-        return;
-    }
-
-    const data = {
-        type: 'peralatan',
-        namaPeralatan: nama,
-        kategoriId: kategoriId,
-        kuantiti: kuantiti,
-        kuantitiTersedia: kuantiti, // Init available = total
-        createdAt: new Date().toISOString()
-    };
-
-    await DataStore.add(data);
-    showToast('Peralatan berjaya ditambah');
-    closeModal('modal-peralatan');
-    document.getElementById('form-peralatan').reset(); // Clear form
-
-    btn.textContent = originalText;
-    btn.disabled = false;
-});
-
 
 // --- LAPORAN & REPORTING ---
 function renderLaporan() {
@@ -2789,11 +2732,11 @@ function renderLaporan() {
                 chartStatusDiv.innerHTML = '<p class="text-slate-400 text-center py-8">Tiada data untuk tempoh ini</p>';
             } else {
                 chartStatusDiv.innerHTML = Object.entries(statusCounts).map(([status, count]) => `
-                    <div class="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 mb-3">
+    < div class="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 mb-3" >
                         <span class="font-bold text-slate-700 text-xs uppercase tracking-wider">${status}</span>
                         <span class="font-black text-indigo-600 text-xl">${count}</span>
-                    </div>
-                `).join('');
+                    </div >
+    `).join('');
             }
         }
 
@@ -2823,7 +2766,7 @@ function renderLaporan() {
                 chartPeralatanDiv.innerHTML = sortedUsage.map(([name, count]) => {
                     const perc = Math.max(10, (count / maxUsage) * 100);
                     return `
-                    <div class="mb-4">
+    < div class="mb-4" >
                         <div class="flex justify-between items-center text-[11px] font-bold mb-1.5">
                             <span class="text-slate-700">${name}</span>
                             <span class="text-indigo-600">${count} Kali</span>
@@ -2831,7 +2774,7 @@ function renderLaporan() {
                         <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
                             <div class="bg-indigo-600 h-full rounded-full transition-all duration-1000" style="width: ${perc}%"></div>
                         </div>
-                    </div>`
+                    </div > `
                 }).join('');
             }
         }
@@ -2845,7 +2788,7 @@ function renderLaporan() {
         if (approvalRateEl) {
             const approved = permohonan.filter(p => p.status === 'Diluluskan').length;
             const rate = permohonan.length > 0 ? Math.round((approved / permohonan.length) * 100) : 0;
-            approvalRateEl.textContent = `${rate}%`;
+            approvalRateEl.textContent = `${rate}% `;
         }
 
         renderLaporanPeralatanTable(itemUsage);
@@ -2883,7 +2826,7 @@ function renderLaporanPeralatanTable(usageData) {
         const hasStock = parseInt(p.kuantitiTersedia) > 0;
 
         return `
-            <tr class="hover:bg-slate-50 transition-colors">
+    < tr class="hover:bg-slate-50 transition-colors" >
                 <td class="px-6 py-4">
                     <p class="font-bold text-slate-800">${p.namaPeralatan}</p>
                 </td>
@@ -2898,8 +2841,8 @@ function renderLaporanPeralatanTable(usageData) {
                         ${hasStock ? 'Sedia' : 'Habis'}
                     </span>
                 </td>
-            </tr>
-        `;
+            </tr >
+    `;
     }).join('');
 }
 
@@ -2949,50 +2892,50 @@ function renderLaporanDewanTable(permohonanData) {
     });
 
     let html = `
-        <tr class="bg-indigo-50/50">
-            <td colspan="4" class="px-6 py-3 text-[10px] font-black text-indigo-600 uppercase tracking-widest">
-                Rekod Ringkasan Fasiliti
-            </td>
-        </tr>
-        <tr class="border-b border-slate-100">
-            <td class="px-6 py-6" colspan="2">
-                <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center border border-indigo-200 shadow-sm">
-                         <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
-                    </div>
-                    <div>
-                        <p class="font-black text-slate-900 text-lg leading-tight uppercase">Dewan Sri Kinabatangan</p>
-                        <p class="text-[10px] text-slate-400 uppercase font-black tracking-widest mt-1">Status Asset: Sedia Digunakan</p>
-                    </div>
+    < tr class="bg-indigo-50/50" >
+        <td colspan="4" class="px-6 py-3 text-[10px] font-black text-indigo-600 uppercase tracking-widest">
+            Rekod Ringkasan Fasiliti
+        </td>
+        </tr >
+    <tr class="border-b border-slate-100">
+        <td class="px-6 py-6" colspan="2">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center border border-indigo-200 shadow-sm">
+                    <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
                 </div>
-            </td>
-            <td class="px-6 py-6 text-center">
-                <div class="inline-flex flex-col items-center bg-white px-6 py-3 rounded-2xl border border-slate-200">
-                    <span class="text-2xl font-black text-slate-800">${dewanApps.length}</span>
-                    <span class="text-[9px] text-slate-400 uppercase font-black tracking-widest mt-1">Total Acara</span>
+                <div>
+                    <p class="font-black text-slate-900 text-lg leading-tight uppercase">Dewan Sri Kinabatangan</p>
+                    <p class="text-[10px] text-slate-400 uppercase font-black tracking-widest mt-1">Status Asset: Sedia Digunakan</p>
                 </div>
-            </td>
-            <td class="px-6 py-6 text-right">
-                <p class="text-[10px] text-slate-400 font-bold uppercase mb-1">Kadar Penggunaan</p>
-                <p class="text-sm font-black text-indigo-600">${Math.min(100, Math.round((dewanApps.length / 30) * 100))}% Bulanan</p>
-            </td>
-        </tr>
-    `;
+            </div>
+        </td>
+        <td class="px-6 py-6 text-center">
+            <div class="inline-flex flex-col items-center bg-white px-6 py-3 rounded-2xl border border-slate-200">
+                <span class="text-2xl font-black text-slate-800">${dewanApps.length}</span>
+                <span class="text-[9px] text-slate-400 uppercase font-black tracking-widest mt-1">Total Acara</span>
+            </div>
+        </td>
+        <td class="px-6 py-6 text-right">
+            <p class="text-[10px] text-slate-400 font-bold uppercase mb-1">Kadar Penggunaan</p>
+            <p class="text-sm font-black text-indigo-600">${Math.min(100, Math.round((dewanApps.length / 30) * 100))}% Bulanan</p>
+        </td>
+    </tr>
+`;
 
     // Ongoing Events Section
     html += `
-        <tr class="bg-orange-50">
-            <td colspan="4" class="px-6 py-4 text-[10px] font-black text-orange-600 uppercase tracking-widest">
-                🔴 Acara Sedang Berlangsung (${ongoingEvents.length})
-            </td>
-        </tr>
+    < tr class="bg-orange-50" >
+        <td colspan="4" class="px-6 py-4 text-[10px] font-black text-orange-600 uppercase tracking-widest">
+            🔴 Acara Sedang Berlangsung (${ongoingEvents.length})
+        </td>
+        </tr >
     `;
     if (ongoingEvents.length === 0) {
-        html += `<tr><td colspan="4" class="px-6 py-4 text-center text-xs text-slate-400 italic">Tiada acara sedang berlangsung</td></tr>`;
+        html += `< tr > <td colspan="4" class="px-6 py-4 text-center text-xs text-slate-400 italic">Tiada acara sedang berlangsung</td></tr > `;
     } else {
         ongoingEvents.forEach(p => {
             html += `
-                <tr class="border-b border-orange-100 transition-colors hover:bg-orange-50/30 bg-orange-50/10">
+    < tr class="border-b border-orange-100 transition-colors hover:bg-orange-50/30 bg-orange-50/10" >
                     <td class="px-6 py-4">
                         <p class="text-sm font-bold text-orange-900">${p.tujuan || 'Aktiviti Dewan'}</p>
                         <p class="text-[10px] text-orange-500 tracking-wide">${p.nama || 'Pemohon'}</p>
@@ -3005,25 +2948,25 @@ function renderLaporanDewanTable(permohonanData) {
                     </td>
                     <td class="px-6 py-4 text-center"><span class="px-2 py-1 bg-orange-200 text-orange-800 text-[9px] font-bold rounded-full uppercase tracking-widest shadow-sm animate-pulse">Sedang</span></td>
                     <td class="px-6 py-4 text-right text-[10px] font-black text-orange-600 uppercase tracking-tighter">Aktif</td>
-                </tr>
-            `;
+                </tr >
+    `;
         });
     }
 
     // Upcoming Events Section
     html += `
-        <tr class="bg-indigo-50/30">
-            <td colspan="4" class="px-6 py-4 text-[10px] font-black text-indigo-600 uppercase tracking-widest">
-                📅 Acara Akan Datang (${upcomingEvents.length})
-            </td>
-        </tr>
+    < tr class="bg-indigo-50/30" >
+        <td colspan="4" class="px-6 py-4 text-[10px] font-black text-indigo-600 uppercase tracking-widest">
+            📅 Acara Akan Datang (${upcomingEvents.length})
+        </td>
+        </tr >
     `;
     if (upcomingEvents.length === 0) {
-        html += `<tr><td colspan="4" class="px-6 py-4 text-center text-xs text-slate-400 italic">Tiada acara akan datang</td></tr>`;
+        html += `< tr > <td colspan="4" class="px-6 py-4 text-center text-xs text-slate-400 italic">Tiada acara akan datang</td></tr > `;
     } else {
         upcomingEvents.slice(0, 3).forEach(p => {
             html += `
-                <tr class="border-b border-slate-50 transition-colors hover:bg-indigo-50/20">
+    < tr class="border-b border-slate-50 transition-colors hover:bg-indigo-50/20" >
                     <td class="px-6 py-4">
                         <p class="text-sm font-bold text-indigo-900">${p.tujuan || 'Aktiviti Dewan'}</p>
                         <p class="text-[10px] text-indigo-400 tracking-wide">${p.nama || 'Pemohon'}</p>
@@ -3036,25 +2979,25 @@ function renderLaporanDewanTable(permohonanData) {
                     </td>
                     <td class="px-6 py-4 text-center"><span class="px-2 py-1 bg-indigo-100 text-indigo-700 text-[9px] font-bold rounded-full uppercase tracking-widest shadow-sm">Booking</span></td>
                     <td class="px-6 py-4 text-right text-[10px] font-black text-indigo-600 uppercase tracking-tighter">Sedia</td>
-                </tr>
-            `;
+                </tr >
+    `;
         });
     }
 
     // Past Events Section
     html += `
-        <tr class="bg-slate-50">
-            <td colspan="4" class="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                🕒 Acara Terdahulu (${pastEvents.length})
-            </td>
-        </tr>
+    < tr class="bg-slate-50" >
+        <td colspan="4" class="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+            🕒 Acara Terdahulu (${pastEvents.length})
+        </td>
+        </tr >
     `;
     if (pastEvents.length === 0) {
-        html += `<tr><td colspan="4" class="px-6 py-4 text-center text-xs text-slate-400 italic">Tiada acara terdahulu</td></tr>`;
+        html += `< tr > <td colspan="4" class="px-6 py-4 text-center text-xs text-slate-400 italic">Tiada acara terdahulu</td></tr > `;
     } else {
         pastEvents.slice(-3).reverse().forEach(p => {
             html += `
-                <tr class="border-b border-slate-50 transition-colors hover:bg-slate-50/50">
+    < tr class="border-b border-slate-50 transition-colors hover:bg-slate-50/50" >
                     <td class="px-6 py-4">
                         <p class="text-sm font-bold text-slate-700">${p.tujuan || 'Aktiviti Dewan'}</p>
                         <p class="text-[10px] text-slate-400 tracking-wide">${p.nama || 'Pemohon'}</p>
@@ -3067,8 +3010,8 @@ function renderLaporanDewanTable(permohonanData) {
                     </td>
                     <td class="px-6 py-4 text-center"><span class="px-2 py-1 bg-slate-100 text-slate-600 text-[9px] font-bold rounded-full uppercase">Selesai</span></td>
                     <td class="px-6 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-tighter">Arsip</td>
-                </tr>
-            `;
+                </tr >
+    `;
         });
     }
 
@@ -4333,3 +4276,176 @@ function playNotificationSound() {
         console.error('Audio play failed', e);
     }
 }
+
+// ===== REFERENCE NUMBER LOGIC =====
+function generateReferenceNo() {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+
+    // Get all permohonan for this year to find the next number
+    const permohonanTahunIni = allData.filter(d => {
+        if (d.type !== 'permohonan' || !d.noPermohonan) return false;
+        // Format: DSK-XXX-YYYY
+        const parts = d.noPermohonan.split('-');
+        return parts.length === 3 && parts[2] === currentYear.toString();
+    });
+
+    let nextNumber = 1;
+    if (permohonanTahunIni.length > 0) {
+        const lastNo = permohonanTahunIni
+            .map(d => parseInt(d.noPermohonan.split('-')[1]) || 0)
+            .reduce((max, val) => Math.max(max, val), 0);
+        nextNumber = lastNo + 1;
+    }
+
+    const paddedNo = nextNumber.toString().padStart(3, '0');
+    return `DSK-${paddedNo}-${currentYear}`;
+}
+
+// Initialize User Form Handler with Reference Number
+function attachUserFormHandler() {
+    const form = document.getElementById('form-user-permohonan');
+    if (!form) return;
+
+    // Check if we already attached prevent duplicated submission
+    if (form.dataset.attached === 'true') return;
+    form.dataset.attached = 'true';
+
+    console.log('📝 User Form Handler Attached');
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const btn = document.getElementById('btn-submit-user-permohonan'); // Ensure ID matches your HTML button
+        // Fallback if ID is different
+        const submitBtn = btn || form.querySelector('button[type="submit"]');
+
+        const originalText = submitBtn ? submitBtn.innerHTML : 'Hantar';
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Menghantar...';
+        }
+
+        try {
+            // Collect Data
+            const id = Date.now().toString();
+            const noPermohonan = generateReferenceNo();
+
+            const permohonan = {
+                type: 'permohonan',
+                __backendId: id,
+                noPermohonan: noPermohonan,
+                nama: document.getElementById('user-nama-pemohon').value,
+                email: document.getElementById('user-email-pemohon').value,
+                nomorTelefon: document.getElementById('user-nombor-telefon').value,
+                cawangan: document.getElementById('user-cawangan').value,
+                jenisPermohonan: document.getElementById('user-jenis-permohonan-hidden').value,
+                tujuan: document.getElementById('user-tujuan').value,
+                tarikhMulaPinjam: document.getElementById('user-tarikh-mula').value,
+                tarikhPulang: document.getElementById('user-tarikh-pulang').value,
+                itemsData: document.getElementById('user-items-data-hidden').value,
+                items: document.getElementById('user-item-dipinjam-hidden').value,
+                status: 'Dalam Proses',
+                createdAt: new Date().toISOString()
+            };
+
+            console.log('🚀 Submitting User Permohonan:', permohonan);
+
+            // Save Data
+            await DataStore.add(permohonan);
+
+            // Show Success UI with Reference Number
+            form.classList.add('hidden');
+            const successContainer = document.getElementById('user-success-container');
+            if (successContainer) {
+                successContainer.classList.remove('hidden');
+
+                // Show Reference No
+                const refEl = document.getElementById('success-no-permohonan');
+                if (refEl) {
+                    refEl.textContent = noPermohonan;
+                } else {
+                    // Inject if missing from HTML edit failure earlier
+                    const p = document.createElement('p');
+                    p.innerHTML = `<br>No. Rujukan: <strong class="text-2xl text-indigo-600">${noPermohonan}</strong>`;
+                    // Insert before the buttons
+                    const btnContainer = successContainer.querySelector('div.mt-10') || successContainer.lastElementChild;
+                    successContainer.insertBefore(p, btnContainer);
+                }
+            }
+
+            // Clear Form
+            form.reset();
+
+        } catch (error) {
+            console.error('Submit Error:', error);
+            showToast('❌ Gagal menghantar permohonan. Sila cuba lagi.');
+        } finally {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
+        }
+    });
+}
+
+// ADMIN ADD KATEGORI & PERALATAN HANDLERS
+document.addEventListener('DOMContentLoaded', () => {
+    // Kategori Form
+    const formKategori = document.getElementById('form-kategori');
+    if (formKategori) {
+        formKategori.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btn-submit-kategori');
+            btn.disabled = true;
+            btn.textContent = 'Menyimpan...';
+
+            const data = {
+                type: 'kategori',
+                namaKategori: document.getElementById('nama-kategori').value,
+                createdAt: new Date().toISOString()
+            };
+
+            const result = await DataStore.add(data);
+            if (result.isOk) {
+                showToast('Kategori berjaya ditambah!');
+                closeModal('modal-kategori');
+                formKategori.reset();
+            }
+            btn.disabled = false;
+            btn.textContent = 'Simpan';
+        });
+    }
+
+    // Peralatan Form
+    const formPeralatan = document.getElementById('form-peralatan');
+    if (formPeralatan) {
+        formPeralatan.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btn-submit-peralatan');
+            btn.disabled = true;
+            btn.textContent = 'Menyimpan...';
+
+            const data = {
+                type: 'peralatan',
+                kategori: document.getElementById('kategori-peralatan').value,
+                namaPeralatan: document.getElementById('nama-peralatan').value,
+                kuantiti: parseInt(document.getElementById('kuantiti-peralatan').value) || 0,
+                kuantitiTersedia: parseInt(document.getElementById('kuantiti-peralatan').value) || 0,
+                createdAt: new Date().toISOString()
+            };
+
+            const result = await DataStore.add(data);
+            if (result.isOk) {
+                showToast('Peralatan berjaya ditambah!');
+                closeModal('modal-peralatan');
+                formPeralatan.reset();
+            }
+            btn.disabled = false;
+            btn.textContent = 'Simpan';
+        });
+    }
+});
+
+// Call on load
+document.addEventListener('DOMContentLoaded', attachUserFormHandler);

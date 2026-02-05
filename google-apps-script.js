@@ -351,7 +351,7 @@ function initializeSheets() {
 
     // Permohonan headers
     const permohonanHeaders = [
-        '__backendId', 'nama', 'email', 'nomorTelefon', 'cawangan',
+        '__backendId', 'noPermohonan', 'nama', 'email', 'nomorTelefon', 'cawangan',
         'jenisPermohonan', 'items', 'itemsData', 'tarikhMulaPinjam',
         'tarikhPulang', 'tujuan', 'status', 'catatan', 'createdAt'
     ];
@@ -360,7 +360,7 @@ function initializeSheets() {
     const kategoriHeaders = ['__backendId', 'namaKategori', 'createdAt'];
 
     // Peralatan headers
-    const peralatanHeaders = ['__backendId', 'kategori', 'namaPeralatan', 'kuantiti', 'createdAt'];
+    const peralatanHeaders = ['__backendId', 'kategori', 'namaPeralatan', 'kuantiti', 'kuantitiTersedia', 'createdAt'];
 
     // Create/update sheets
     createOrUpdateSheet(ss, SHEET_NAMES.permohonan, permohonanHeaders);
