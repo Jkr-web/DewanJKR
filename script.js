@@ -1511,7 +1511,7 @@ function renderPermohonan() {
               <button onclick="openDeleteModal('${p.__backendId}', 'permohonan')" class="text-red-600 hover:text-red-800 text-sm font-medium">Padam</button>
             </div>
           </td>
-        </tr >
+        </tr>
             `}).join('');
 }
 
@@ -2766,11 +2766,11 @@ function renderLaporan() {
                 chartStatusDiv.innerHTML = '<p class="text-slate-400 text-center py-8">Tiada data untuk tempoh ini</p>';
             } else {
                 chartStatusDiv.innerHTML = Object.entries(statusCounts).map(([status, count]) => `
-    < div class="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 mb-3" >
+                    <div class="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 mb-3">
                         <span class="font-bold text-slate-700 text-xs uppercase tracking-wider">${status}</span>
                         <span class="font-black text-indigo-600 text-xl">${count}</span>
-                    </div >
-    `).join('');
+                    </div>
+                `).join('');
             }
         }
 
@@ -2800,15 +2800,15 @@ function renderLaporan() {
                 chartPeralatanDiv.innerHTML = sortedUsage.map(([name, count]) => {
                     const perc = Math.max(10, (count / maxUsage) * 100);
                     return `
-    < div class="mb-4" >
-                        <div class="flex justify-between items-center text-[11px] font-bold mb-1.5">
-                            <span class="text-slate-700">${name}</span>
-                            <span class="text-indigo-600">${count} Kali</span>
-                        </div>
-                        <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                            <div class="bg-indigo-600 h-full rounded-full transition-all duration-1000" style="width: ${perc}%"></div>
-                        </div>
-                    </div > `
+                        <div class="mb-4">
+                            <div class="flex justify-between items-center text-[11px] font-bold mb-1.5">
+                                <span class="text-slate-700">${name}</span>
+                                <span class="text-indigo-600">${count} Kali</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                <div class="bg-indigo-600 h-full rounded-full transition-all duration-1000" style="width: ${perc}%"></div>
+                            </div>
+                        </div>`
                 }).join('');
             }
         }
@@ -2860,12 +2860,12 @@ function renderLaporanPeralatanTable(usageData) {
         const hasStock = parseInt(p.kuantitiTersedia) > 0;
 
         return `
-    < tr class="hover:bg-slate-50 transition-colors" >
+            <tr class="hover:bg-slate-50 transition-colors">
                 <td class="px-6 py-4">
                     <p class="font-bold text-slate-800">${p.namaPeralatan}</p>
                 </td>
                 <td class="px-6 py-4 text-slate-500 text-[10px] font-bold uppercase tracking-tighter">
-                    ${kat ? kat.nama : '-'}
+                    ${kat ? (kat.namaKategori || kat.nama) : '-'}
                 </td>
                 <td class="px-6 py-4 text-center">
                     <span class="font-black text-indigo-700 text-lg">${usageCount}</span>
@@ -2875,8 +2875,8 @@ function renderLaporanPeralatanTable(usageData) {
                         ${hasStock ? 'Sedia' : 'Habis'}
                     </span>
                 </td>
-            </tr >
-    `;
+            </tr>
+        `;
     }).join('');
 }
 
@@ -2926,11 +2926,11 @@ function renderLaporanDewanTable(permohonanData) {
     });
 
     let html = `
-    < tr class="bg-indigo-50/50" >
+    <tr class="bg-indigo-50/50">
         <td colspan="4" class="px-6 py-3 text-[10px] font-black text-indigo-600 uppercase tracking-widest">
             Rekod Ringkasan Fasiliti
         </td>
-        </tr >
+    </tr>
     <tr class="border-b border-slate-100">
         <td class="px-6 py-6" colspan="2">
             <div class="flex items-center gap-4">
@@ -2958,18 +2958,18 @@ function renderLaporanDewanTable(permohonanData) {
 
     // Ongoing Events Section
     html += `
-    < tr class="bg-orange-50" >
+    <tr class="bg-orange-50">
         <td colspan="4" class="px-6 py-4 text-[10px] font-black text-orange-600 uppercase tracking-widest">
             🔴 Acara Sedang Berlangsung (${ongoingEvents.length})
         </td>
-        </tr >
+    </tr>
     `;
     if (ongoingEvents.length === 0) {
-        html += `< tr > <td colspan="4" class="px-6 py-4 text-center text-xs text-slate-400 italic">Tiada acara sedang berlangsung</td></tr > `;
+        html += `<tr><td colspan="4" class="px-6 py-4 text-center text-xs text-slate-400 italic">Tiada acara sedang berlangsung</td></tr>`;
     } else {
         ongoingEvents.forEach(p => {
             html += `
-    < tr class="border-b border-orange-100 transition-colors hover:bg-orange-50/30 bg-orange-50/10" >
+                <tr class="border-b border-orange-100 transition-colors hover:bg-orange-50/30 bg-orange-50/10">
                     <td class="px-6 py-4">
                         <p class="text-sm font-bold text-orange-900">${p.tujuan || 'Aktiviti Dewan'}</p>
                         <p class="text-[10px] text-orange-500 tracking-wide">${p.nama || 'Pemohon'}</p>
@@ -2982,25 +2982,25 @@ function renderLaporanDewanTable(permohonanData) {
                     </td>
                     <td class="px-6 py-4 text-center"><span class="px-2 py-1 bg-orange-200 text-orange-800 text-[9px] font-bold rounded-full uppercase tracking-widest shadow-sm animate-pulse">Sedang</span></td>
                     <td class="px-6 py-4 text-right text-[10px] font-black text-orange-600 uppercase tracking-tighter">Aktif</td>
-                </tr >
-    `;
+                </tr>
+            `;
         });
     }
 
     // Upcoming Events Section
     html += `
-    < tr class="bg-indigo-50/30" >
+    <tr class="bg-indigo-50/30">
         <td colspan="4" class="px-6 py-4 text-[10px] font-black text-indigo-600 uppercase tracking-widest">
             📅 Acara Akan Datang (${upcomingEvents.length})
         </td>
-        </tr >
+    </tr>
     `;
     if (upcomingEvents.length === 0) {
-        html += `< tr > <td colspan="4" class="px-6 py-4 text-center text-xs text-slate-400 italic">Tiada acara akan datang</td></tr > `;
+        html += `<tr><td colspan="4" class="px-6 py-4 text-center text-xs text-slate-400 italic">Tiada acara akan datang</td></tr>`;
     } else {
         upcomingEvents.slice(0, 3).forEach(p => {
             html += `
-    < tr class="border-b border-slate-50 transition-colors hover:bg-indigo-50/20" >
+                <tr class="border-b border-slate-50 transition-colors hover:bg-indigo-50/20">
                     <td class="px-6 py-4">
                         <p class="text-sm font-bold text-indigo-900">${p.tujuan || 'Aktiviti Dewan'}</p>
                         <p class="text-[10px] text-indigo-400 tracking-wide">${p.nama || 'Pemohon'}</p>
@@ -3013,25 +3013,25 @@ function renderLaporanDewanTable(permohonanData) {
                     </td>
                     <td class="px-6 py-4 text-center"><span class="px-2 py-1 bg-indigo-100 text-indigo-700 text-[9px] font-bold rounded-full uppercase tracking-widest shadow-sm">Booking</span></td>
                     <td class="px-6 py-4 text-right text-[10px] font-black text-indigo-600 uppercase tracking-tighter">Sedia</td>
-                </tr >
-    `;
+                </tr>
+            `;
         });
     }
 
     // Past Events Section
     html += `
-    < tr class="bg-slate-50" >
+    <tr class="bg-slate-50">
         <td colspan="4" class="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">
             🕒 Acara Terdahulu (${pastEvents.length})
         </td>
-        </tr >
+    </tr>
     `;
     if (pastEvents.length === 0) {
-        html += `< tr > <td colspan="4" class="px-6 py-4 text-center text-xs text-slate-400 italic">Tiada acara terdahulu</td></tr > `;
+        html += `<tr><td colspan="4" class="px-6 py-4 text-center text-xs text-slate-400 italic">Tiada acara terdahulu</td></tr>`;
     } else {
         pastEvents.slice(-3).reverse().forEach(p => {
             html += `
-    < tr class="border-b border-slate-50 transition-colors hover:bg-slate-50/50" >
+                <tr class="border-b border-slate-50 transition-colors hover:bg-slate-50/50">
                     <td class="px-6 py-4">
                         <p class="text-sm font-bold text-slate-700">${p.tujuan || 'Aktiviti Dewan'}</p>
                         <p class="text-[10px] text-slate-400 tracking-wide">${p.nama || 'Pemohon'}</p>
@@ -3044,8 +3044,8 @@ function renderLaporanDewanTable(permohonanData) {
                     </td>
                     <td class="px-6 py-4 text-center"><span class="px-2 py-1 bg-slate-100 text-slate-600 text-[9px] font-bold rounded-full uppercase">Selesai</span></td>
                     <td class="px-6 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-tighter">Arsip</td>
-                </tr >
-    `;
+                </tr>
+            `;
         });
     }
 
@@ -3958,11 +3958,9 @@ function initReportPreviewListeners() {
                     
                     /* Main content with proper spacing */
                     .report-body {
-                        margin-top: 160px;
-                        margin-bottom: 70px;
-                        padding: 25px 35px;
+                        padding: 0;
                         background: #f8fafc;
-                        min-height: calc(100vh - 230px);
+                        min-height: calc(100vh - 250px);
                     }
                     
                     /* Content sections */
@@ -3970,7 +3968,7 @@ function initReportPreviewListeners() {
                         background: white;
                         padding: 25px;
                         border-radius: 10px;
-                        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+                        border: 1px solid #e5e7eb;
                         margin-bottom: 25px;
                         page-break-inside: avoid;
                         break-inside: avoid;
@@ -4038,10 +4036,6 @@ function initReportPreviewListeners() {
                         page-break-inside: auto;
                     }
                     
-                    thead {
-                        display: table-header-group;
-                    }
-                    
                     tr {
                         page-break-inside: avoid;
                         page-break-after: auto;
@@ -4062,31 +4056,63 @@ function initReportPreviewListeners() {
                         font-size: 8pt;
                         letter-spacing: 0.5px;
                     }
-                    
+
                     tbody tr:nth-child(even) {
                         background: #f9fafb;
                     }
                     
-                    tbody td {
-                        border: 1px solid #d1d5db;
-                    }
-                    
-                    /* Print adjustments */
+                    /* TAILWIND ICON SCALING FIXES */
+                    .w-5 { width: 20px !important; } .h-5 { height: 20px !important; }
+                    .w-6 { width: 24px !important; } .h-6 { height: 24px !important; }
+                    .w-7 { width: 28px !important; } .h-7 { height: 28px !important; }
+                    .w-8 { width: 32px !important; } .h-8 { height: 32px !important; }
+                    .w-10 { width: 40px !important; } .h-10 { height: 40px !important; }
+                    .w-12 { width: 48px !important; } .h-12 { height: 48px !important; }
+                    .rounded-full { border-radius: 9999px !important; }
+                    .rounded-xl { border-radius: 12px !important; }
+                    .flex { display: flex !important; }
+                    .items-center { align-items: center !important; }
+                    .justify-center { justify-content: center !important; }
+                    .gap-4 { gap: 1rem !important; }
+                    svg { display: block; max-width: 100%; max-height: 100%; }
+
                     @media print {
                         body {
                             -webkit-print-color-adjust: exact;
                             print-color-adjust: exact;
                         }
-                        
                         .report-section {
                             box-shadow: none;
-                            border: 1px solid #e5e7eb;
                         }
                     }
                 </style>
             </head>
             <body>
-                ${editableArea.innerHTML}
+                <table style="width: 100%; border: none; border-collapse: collapse; margin: 0; padding: 0;">
+                    <thead>
+                        <tr><td style="height: 170px; border: none; padding: 0;">&nbsp;</td></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="border: none; padding: 0;">
+                                <div class="report-body">
+                                    ${editableArea.querySelector('.report-body').innerHTML}
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr><td style="height: 80px; border: none; padding: 0;">&nbsp;</td></tr>
+                    </tfoot>
+                </table>
+
+                <div class="report-header">
+                    ${editableArea.querySelector('.report-header').innerHTML}
+                </div>
+
+                <div class="report-footer">
+                    ${editableArea.querySelector('.report-footer').innerHTML}
+                </div>
             </body>
             </html>
         `);
