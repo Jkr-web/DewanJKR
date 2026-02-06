@@ -346,32 +346,41 @@ function setupAuthListener() {
         auth.onAuthStateChanged((user) => {
             if (user) {
                 console.log('✅ User logged in:', user.email);
-                isLoggedIn = true;
+
+                // Set Session State
+                sessionStorage.setItem('loggedIn', 'true');
                 localStorage.setItem('isLoggedIn', 'true');
                 localStorage.setItem('userEmail', user.email);
-                // Try to get role & name from Firestore 'users' collection
+
+                const userName = user.displayName || user.email.split('@')[0];
+                localStorage.setItem('userName', userName);
+
+                // Update specific UI components
+                updateUserUI(userName, user.email, user.photoURL);
+
+                // Try to get additional info from Firestore
                 if (typeof db !== 'undefined') {
                     db.collection('users').doc(user.uid).get()
                         .then(docSnap => {
                             if (docSnap.exists) {
                                 const u = docSnap.data();
+                                const finalName = u.name || userName;
                                 localStorage.setItem('userRole', u.role || '');
-                                localStorage.setItem('userName', u.name || user.displayName || user.email);
-                            } else {
-                                localStorage.setItem('userName', user.displayName || user.email);
+                                localStorage.setItem('userName', finalName);
+                                updateUserUI(finalName, user.email, user.photoURL);
                             }
                         }).catch(err => {
                             console.warn('Firestore read error:', err);
-                            localStorage.setItem('userName', user.displayName || user.email);
                         });
-                } else {
-                    localStorage.setItem('userName', user.displayName || user.email);
                 }
 
                 const pageLogin = document.getElementById('login-page');
                 const pageApp = document.getElementById('app');
                 if (pageLogin) pageLogin.classList.add('hidden');
-                if (pageApp) pageApp.classList.remove('hidden');
+                if (pageApp) {
+                    pageApp.classList.remove('hidden');
+                    pageApp.style.display = 'flex';
+                }
 
                 if (typeof DataStore !== 'undefined') {
                     DataStore.notify();
@@ -380,6 +389,8 @@ function setupAuthListener() {
                 showPage(lastPage);
             } else {
                 console.log('ℹ️ No user logged in');
+                sessionStorage.removeItem('loggedIn');
+                localStorage.removeItem('isLoggedIn');
             }
         });
     } catch (error) {
@@ -3598,92 +3609,186 @@ function applyLogoSettings() {
 
 //login page script
 
-// LOGIN FUNCTION
-// ===== LOGIN =====
-// ===== LOGIN =====
-const loginForm = document.getElementById('loginForm');
-const loadingOverlay = document.getElementById('loadingOverlay');
+// ===== LOGIN HANDLING =====
+async function handleLogin() {
+    const userInp = document.getElementById('username');
+    const passInp = document.getElementById('password');
+    const errDiv = document.getElementById('login-error');
+    const btn = document.getElementById('btn-login');
 
-function showLoader() {
-    loadingOverlay.style.display = 'flex';
-}
+    if (!userInp || !passInp) return;
 
-function hideLoader() {
-    loadingOverlay.style.display = 'none';
-}
+    const username = userInp.value.trim();
+    const password = passInp.value.trim();
 
-if (loginForm) {
-    loginForm.addEventListener('submit', function (e) {
-        e.preventDefault();
-        showLoader();
+    if (!username || !password) {
+        if (errDiv) errDiv.classList.remove('hidden');
+        return;
+    }
 
-        setTimeout(() => {
-            hideLoader();
+    btn.disabled = true;
+    const originalText = btn.textContent;
+    btn.textContent = 'Menyemak...';
 
-            const username = document.getElementById('username').value.trim();
-            const password = document.getElementById('password').value.trim();
+    try {
+        // Fetch users from local data or localstorage
+        const users = [
+            { id: 'admin', password: 'password123', name: 'Super Admin', role: 'admin' },
+            { id: 'staff', password: 'password123', name: 'Staff', role: 'user' }
+        ];
 
-            // Ambil user dari localStorage
-            fetch("data/users.json")
-                .then(res => res.json())
-                .then(users => {
+        // Also check localStorage for dynamically added users
+        const localUsers = JSON.parse(localStorage.getItem('users') || '[]');
+        const allUsers = [...users, ...localUsers];
 
-                    const foundUser = users.find(
-                        u => u.id === username && u.password === password
-                    );
+        const foundUser = allUsers.find(u => u.id === username && u.password === password);
 
-                    if (!foundUser) {
-                        alert("❌ Username atau password salah!");
-                        return;
-                    }
+        if (foundUser) {
+            console.log('✅ Login successful:', foundUser.name);
+            sessionStorage.setItem('loggedIn', 'true');
+            localStorage.setItem('isLoggedIn', 'true');
+            localStorage.setItem('userName', foundUser.name);
+            localStorage.setItem('userEmail', foundUser.id);
+            localStorage.setItem('userRole', foundUser.role);
 
-                    // SIMPAN SESSION (kekalkan logic anda)
-                    sessionStorage.setItem("loggedIn", "true");
-                    sessionStorage.setItem("currentUser", JSON.stringify(foundUser));
+            // Hide login, show app (SPA logic)
+            const pageLogin = document.getElementById('login-page');
+            const pageApp = document.getElementById('app');
+            if (pageLogin) pageLogin.classList.add('hidden');
+            if (pageApp) {
+                pageApp.classList.remove('hidden');
+                pageApp.style.display = 'flex';
+            }
 
-                    window.location.href = "dashboard.html";
-                })
-                .catch(() => {
-                    alert("❌ Gagal load data user");
-                });
+            updateUserUI(foundUser.name, foundUser.id);
+            showPage('dashboard');
 
-
-        }, 1500);
-    });
-}
-
-// ===== SESSION CHECK =====
-if (window.location.pathname.endsWith("dashboard.html")) {
-    if (sessionStorage.getItem("loggedIn") !== "true") {
-        window.location.href = "index.html";
+            if (typeof startIdleTimer === 'function') startIdleTimer();
+        } else {
+            if (errDiv) {
+                const errMsg = document.getElementById('login-error-msg');
+                if (errMsg) errMsg.textContent = 'Username atau password salah';
+                errDiv.classList.remove('hidden');
+            }
+        }
+    } catch (e) {
+        console.error('Login error:', e);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
     }
 }
 
+// Global window assignment
+window.handleLogin = handleLogin;
+
+// Redirect if not logged in (for SPA logic)
+function checkAuth() {
+    const isLocalLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    const isSessionLoggedIn = sessionStorage.getItem('loggedIn') === 'true';
+    const pageLogin = document.getElementById('login-page');
+    const pageApp = document.getElementById('app');
+
+    if ((isLocalLoggedIn || isSessionLoggedIn) && pageLogin && pageApp) {
+        pageLogin.classList.add('hidden');
+        pageApp.classList.remove('hidden');
+        pageApp.style.display = 'flex';
+
+        // Load user data into UI
+        const name = localStorage.getItem('userName') || 'Admin';
+        const email = localStorage.getItem('userEmail') || '';
+        updateUserUI(name, email);
+    }
+}
+
+// Update User display in Sidebar and Header
+function updateUserUI(name, email, photoURL = null) {
+    if (!name) return;
+    console.log('👤 Updating User UI:', name);
+
+    // Header Display
+    const headerNameArr = document.querySelectorAll('header p.text-sm.font-bold.text-slate-800, #app header .text-slate-800 p.font-bold');
+    const headerAvatarArr = document.querySelectorAll('header div.w-9.h-9.bg-gradient-to-br, #app header .w-9.h-9');
+
+    headerNameArr.forEach(el => el.textContent = name);
+    headerAvatarArr.forEach(el => el.textContent = name.charAt(0).toUpperCase());
+
+    // Sidebar Display
+    const sidebarName = document.querySelector('aside p.text-sm.font-medium');
+    const sidebarEmail = document.querySelector('aside p.text-xs.text-indigo-300');
+    const sidebarAvatar = document.querySelector('aside div.w-8.h-8.bg-amber-400');
+
+    if (sidebarName) sidebarName.textContent = name;
+    if (sidebarEmail) sidebarEmail.textContent = email || 'Pentadbir Sistem';
+    if (sidebarAvatar) sidebarAvatar.textContent = name.charAt(0).toUpperCase();
+
+    // Reset Login Button if applicable
+    const googleBtn = document.getElementById('btn-google-signin');
+    if (googleBtn) {
+        googleBtn.disabled = false;
+        const originalHTML = `
+            <svg class="w-5 h-5" viewBox="0 0 24 24">
+                <path fill="#EA4335" d="M5.266 9.765A7.077 7.077 0 0 1 12 4.9a7.1 7.1 0 0 1 4.82 1.783l3.58-3.58A11.908 11.908 0 0 0 12 0C7.27 0 3.198 2.698.96 6.65l4.305 3.115z" />
+                <path fill="#34A853" d="M12 24c2.97 0 5.46-.998 7.28-2.738l-3.528-2.74a4.9 4.9 0 0 1-3.752 1.478c-2.882 0-5.336-1.988-6.214-4.983H2.909v3.195C3.962 22.56 7.67 24 12 24z" />
+                <path fill="#4A90E2" d="M5.786 14.876c-.293-.935-.458-1.922-.458-2.876s.165-1.941.458-2.876L2.481 5.961A11.884 11.884 0 0 0 0 12c0 1.946.474 3.787 1.313 5.404l4.473-3.528z" />
+                <path fill="#FBBC05" d="M12 5.217a4.9 4.9 0 0 1 3.465 1.345l2.612-2.612A7.091 7.091 0 0 0 12 4.9c-4.33 0-8.038 2.44-9.091 6.05l4.305 3.115c.878-2.995 3.332-4.848 6.214-4.848z" />
+            </svg>
+            <span>Log Masuk dengan Google</span>
+        `;
+        if (googleBtn.innerHTML.includes('animate-spin')) {
+            googleBtn.innerHTML = originalHTML;
+        }
+    }
+}
+
+// ===== SESSION CHECK (OLD REDIRECTS REMOVED) =====
+document.addEventListener('DOMContentLoaded', checkAuth);
+
 // ===== AUTO LOGOUT + REMINDER =====
 let timeoutReminder, autoLogout;
-const timeoutLimit = 10 * 60 * 1000; // 10 minit
-const reminderTime = 9 * 60 * 1000;  // 1 minit sebelum logout
+let timeoutLimit = parseInt(localStorage.getItem('portalAutoLogout')) * 1000 || 30 * 1000; // Default 30s
+let reminderTime = timeoutLimit > 20000 ? timeoutLimit - 10000 : timeoutLimit * 0.7; // Reminder 10s before or 70% of time
 
 // Popup reminder
 const timeoutReminderDiv = document.createElement('div');
-timeoutReminderDiv.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:rgba(26,188,156,0.95);color:#fff;padding:18px 25px;border-radius:12px;font-weight:700;box-shadow:0 0 15px #1abc9c,0 0 25px rgba(26,188,156,0.5);text-align:center;display:none;z-index:9999;';
-timeoutReminderDiv.innerHTML = '⚠️ Anda akan logout dalam 1 minit kerana tiada aktiviti! <button id="stayLoggedIn" style="margin-top:10px;padding:8px 16px;border:none;border-radius:10px;background:#3498db;color:#fff;cursor:pointer;box-shadow:0 5px 15px rgba(0,0,0,0.4);">Terus Login</button>';
+timeoutReminderDiv.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:rgba(225,29,72,0.95);color:#fff;padding:18px 25px;border-radius:12px;font-weight:700;box-shadow:0 0 15px #e11d48,0 0 25px rgba(225,29,72,0.5);text-align:center;display:none;z-index:9999;';
+timeoutReminderDiv.innerHTML = `⚠️ Sesi anda hampir tamat! <br><span style="font-size:10px; opacity:0.8;">Skrin akan logout sebentar lagi kerana tiada aktiviti.</span> <br> <button id="stayLoggedIn" style="margin-top:10px;padding:8px 16px;border:none;border-radius:10px;background:#fff;color:#e11d48;font-weight:bold;cursor:pointer;box-shadow:0 5px 15px rgba(0,0,0,0.2);">Terus Login</button>`;
 document.body.appendChild(timeoutReminderDiv);
-const stayBtn = document.getElementById('stayLoggedIn');
 
 function resetIdleTimer() {
-    clearTimeout(timeoutReminder); clearTimeout(autoLogout);
+    clearTimeout(timeoutReminder);
+    clearTimeout(autoLogout);
     timeoutReminderDiv.style.display = 'none';
     startIdleTimer();
 }
 
 function startIdleTimer() {
-    timeoutReminder = setTimeout(() => { timeoutReminderDiv.style.display = 'block'; }, reminderTime);
-    autoLogout = setTimeout(() => { sessionStorage.removeItem("loggedIn"); window.location.href = "index.html"; }, timeoutLimit);
+    // Only run if logged in as admin
+    if (sessionStorage.getItem('loggedIn') !== 'true') return;
+
+    timeoutReminder = setTimeout(() => {
+        timeoutReminderDiv.style.display = 'block';
+    }, reminderTime);
+
+    autoLogout = setTimeout(() => {
+        sessionStorage.removeItem("loggedIn");
+        localStorage.removeItem("isLoggedIn");
+        window.location.href = "index.html";
+    }, timeoutLimit);
 }
 
-['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(evt => { document.addEventListener(evt, resetIdleTimer, false); });
-stayBtn.addEventListener('click', () => { timeoutReminderDiv.style.display = 'none'; resetIdleTimer(); });
+// Add global listeners for activity
+['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(evt => {
+    document.addEventListener(evt, resetIdleTimer, false);
+});
+
+// Listener for "Stay Logged In" button
+document.addEventListener('click', (e) => {
+    if (e.target.id === 'stayLoggedIn') {
+        resetIdleTimer();
+    }
+});
+
 startIdleTimer();
 
 // ===== BURGER MENU LOGOUT CONFIRM =====
@@ -4902,6 +5007,50 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+// ===== SECURITY SETTINGS HANDLER =====
+async function saveSecuritySettings() {
+    const duration = parseInt(document.getElementById('auto-logout-duration').value);
+
+    if (isNaN(duration) || duration < 10) {
+        showToast('❌ Tempoh minimum adalah 10 saat', 'error');
+        return;
+    }
+
+    localStorage.setItem('portalAutoLogout', duration);
+
+    // Update local variables immediately
+    timeoutLimit = duration * 1000;
+    reminderTime = timeoutLimit > 20000 ? timeoutLimit - 10000 : timeoutLimit * 0.7;
+
+    // Sync to Google Sheets if possible
+    if (typeof savePortalSetting === 'function') {
+        await savePortalSetting('portalAutoLogout', duration);
+    }
+
+    showToast('✅ Tetapan keselamatan disimpan! Timer dimulakan semula.');
+
+    // Restart logic
+    resetIdleTimer();
+}
+
+// Ensure settings are loaded on startup
+document.addEventListener('DOMContentLoaded', () => {
+    const savedDuration = localStorage.getItem('portalAutoLogout') || "30";
+    const durationInput = document.getElementById('auto-logout-duration');
+    if (durationInput) {
+        durationInput.value = savedDuration;
+    }
+});
+
 // Call on load
 document.addEventListener('DOMContentLoaded', attachUserFormHandler);
 
+// Helper to save portal settings to Sheets
+async function savePortalSetting(key, value) {
+    if (!GoogleSheetsDB.isConfigured()) return;
+    try {
+        await GoogleSheetsDB.add('settings', { key, value, updatedAt: new Date().toISOString() });
+    } catch (e) {
+        console.warn('Failed to sync setting to sheets:', e);
+    }
+}
