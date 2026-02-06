@@ -34,7 +34,7 @@ if (document.readyState === 'loading') {
 
 // ===== GOOGLE SHEETS DATABASE INTEGRATION =====
 // PENTING: Gantikan URL ini dengan URL deployment Apps Script anda
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzL57eQHAwH8NfhYqv9dSDwVjKl07RqKcN8R_seltGrTT4_szjIiiU1jxFHUGSAo4iLMg/exec'; // <- TUKAR INI!
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxyqWPMxjMmJUWRkmfI9C6dxwRCcutYXEwRw6HgisQxo7vZrG8S5MgtTwv8TfqSOjci/exec'; // <- TUKAR INI!
 
 // Google Sheets Database API
 const GoogleSheetsDB = {
@@ -244,9 +244,9 @@ function getFirebaseReady() {
         }
 
         const urls = [
-            'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js',
-            'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js',
-            'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js'
+            'https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js',
+            'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js',
+            'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js'
         ];
 
         function loadScript(url) {
@@ -646,11 +646,17 @@ const DataStore = {
         this.save(data);
 
         // Sync to Google Sheets (Wait for it to ensure consistency)
+        // Sync to Google Sheets
         if (this.syncEnabled && GoogleSheetsDB.isConfigured()) {
             try {
-                await GoogleSheetsDB.add(item.type, item);
+                const res = await GoogleSheetsDB.add(item.type, item);
+                if (!res.success) {
+                    console.error('❌ Google Sheets add failed:', res.error);
+                    showToast('Gagal menyelaraskan ke Google Sheets: ' + (res.error || 'Ralat tidak diketahui'), 'error');
+                }
             } catch (err) {
                 console.warn('⚠️ Google Sheets sync failed (add):', err);
+                showToast('Ralat sambungan ke Google Sheets.', 'error');
             }
         }
 
@@ -660,8 +666,8 @@ const DataStore = {
     update: async function (id, updatedItem) {
         let data = this.get();
         // Convert id to string for consistent comparison
-        const targetId = String(id);
-        const index = data.findIndex(d => String(d.__backendId) === targetId);
+        const targetId = String(id).trim();
+        const index = data.findIndex(d => d.__backendId && String(d.__backendId).trim() === targetId);
 
         if (index !== -1) {
             const oldType = data[index].type;
@@ -669,46 +675,54 @@ const DataStore = {
             this.save(data);
 
             if (this.syncEnabled && GoogleSheetsDB.isConfigured()) {
-                // Ensure we send the correct string ID to backend
-                GoogleSheetsDB.update(oldType || updatedItem.type, targetId, data[index]).catch(err => {
+                try {
+                    const res = await GoogleSheetsDB.update(oldType || updatedItem.type, targetId, data[index]);
+                    if (!res.success) {
+                        console.error('❌ Google Sheets update failed:', res.error);
+                        showToast('Gagal mengemaskini Google Sheets: ' + (res.error || 'Ralat tidak diketahui'), 'error');
+                    } else {
+                        console.log('✅ Google Sheets update success');
+                    }
+                } catch (err) {
                     console.warn('⚠️ Google Sheets sync failed (update):', err);
-                });
+                    showToast('Ralat sambungan semasa mengemaskini Google Sheets.', 'error');
+                }
             }
 
-            return Promise.resolve({ isOk: true });
+            return { isOk: true };
         }
         return Promise.resolve({ isOk: false, error: 'Item not found' });
     },
 
-    remove: async function (id) {
+    remove: async function (id, fallbackType = 'permohonan') {
         let data = this.get();
-        // Convert id to string for consistent comparison
-        const targetId = String(id);
+        const targetId = String(id).trim();
 
-        const item = data.find(d => String(d.__backendId) === targetId);
-        const itemType = item ? item.type : 'permohonan';
+        const item = data.find(d => d.__backendId && String(d.__backendId).trim() === targetId);
+        const itemType = item ? item.type : fallbackType;
 
-        // Filter out item using strict string comparison
+        console.log(`🗑️ DataStore: Attempting delete of [${itemType}] ID: ${targetId}`);
+
+        // Filter out item
         const initialLength = data.length;
-        data = data.filter(d => String(d.__backendId) !== targetId);
-
-        if (data.length === initialLength) {
-            console.warn('⚠️ Item not found via ID for local delete:', targetId);
-        } else {
-            console.log('🗑️ Local item deleted:', targetId);
-        }
+        data = data.filter(d => !d.__backendId || String(d.__backendId).trim() !== targetId);
 
         this.save(data);
 
         // Sync to Google Sheets
         if (this.syncEnabled && GoogleSheetsDB.isConfigured()) {
             try {
-                // Wait for Sheets to confirm deletion before we consider it "done"
-                // This prevents the real-time sync from fetching the old row back
-                await GoogleSheetsDB.delete(itemType, targetId);
+                console.log(`📡 Syncing delete to Sheets for [${itemType}] ID: ${targetId}`);
+                const result = await GoogleSheetsDB.delete(itemType, targetId);
+                if (result.success) {
+                    console.log('📡 Sheets delete success:', result);
+                } else {
+                    console.error('❌ Sheets delete failed:', result.error);
+                    showToast('Gagal memadam data pada Google Sheets: ' + (result.error || 'Ralat tidak diketahui'), 'error');
+                }
             } catch (err) {
                 console.warn('⚠️ Google Sheets sync failed (delete):', err);
-                // We still returned success locally, but it might reappear on sync
+                showToast('Gagal menyambung ke Google Sheets untuk pemadaman.', 'error');
             }
         }
 
@@ -1538,26 +1552,126 @@ function renderKategori() {
         return;
     }
 
-    container.innerHTML = kategori.map(k => `
-        <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-              <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
-              </svg>
-            </div>
-            <span class="font-medium text-slate-800">${k.namaKategori || k.nama || '-'}</span>
-          </div>
-          <button onclick="openDeleteModal('${k.__backendId}', 'kategori')" class="text-red-500 hover:text-red-700">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-            </svg>
-          </button>
-        </div>
-            `).join('');
+    let html = `
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead class="bg-slate-50">
+                <tr>
+                    <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-widest">Nama Kategori</th>
+                    <th class="px-4 py-3 text-right text-xs font-black text-slate-500 uppercase tracking-widest">Tindakan</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+    `;
+
+    html += kategori.map(k => `
+            <tr class="hover:bg-slate-50 transition-colors">
+                <td class="px-4 py-3">
+                    <p class="font-medium text-slate-800">${k.namaKategori || k.nama || '-'}</p>
+                </td>
+                <td class="px-4 py-3 text-right">
+                    <div class="flex justify-end gap-1">
+                        <button onclick="openEditKategori('${k.__backendId}')" class="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Edit">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                            </svg>
+                        </button>
+                        <button onclick="openDeleteModal('${k.__backendId}', 'kategori')" class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Padam">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+
+    html += `
+            </tbody>
+        </table>
+    </div>
+    `;
+
+    container.innerHTML = html;
 }
 
 // Render peralatan
+function openEditKategori(id) {
+    const targetId = String(id).trim();
+    const data = allData.find(d => d.__backendId && String(d.__backendId).trim() === targetId);
+    if (!data) {
+        console.error('❌ Kategori not found for edit ID:', targetId);
+        return;
+    }
+
+    document.getElementById('kategori-id').value = targetId;
+    document.getElementById('nama-kategori').value = data.namaKategori || data.nama || '';
+
+    // Update modal UI
+    const modal = document.getElementById('modal-kategori');
+    if (modal) {
+        modal.querySelector('h3').textContent = 'Edit Kategori';
+        document.getElementById('btn-submit-kategori').textContent = 'Kemaskini';
+    }
+
+    openModal('modal-kategori');
+}
+
+function openAddPeralatan() {
+    const form = document.getElementById('form-peralatan');
+    if (form) form.reset();
+
+    document.getElementById('peralatan-id').value = '';
+
+    // Update modal UI
+    const modal = document.getElementById('modal-peralatan');
+    if (modal) {
+        modal.querySelector('h3').textContent = 'Tambah Peralatan';
+        document.getElementById('btn-submit-peralatan').textContent = 'Simpan';
+    }
+
+    openModal('modal-peralatan');
+}
+
+function openAddKategori() {
+    const form = document.getElementById('form-kategori');
+    if (form) form.reset();
+
+    document.getElementById('kategori-id').value = '';
+
+    // Update modal UI
+    const modal = document.getElementById('modal-kategori');
+    if (modal) {
+        modal.querySelector('h3').textContent = 'Tambah Kategori';
+        document.getElementById('btn-submit-kategori').textContent = 'Simpan';
+    }
+
+    openModal('modal-kategori');
+}
+
+function openEditPeralatan(id) {
+    const targetId = String(id).trim();
+    const data = allData.find(d => d.__backendId && String(d.__backendId).trim() === targetId);
+    if (!data) {
+        console.error('❌ Peralatan not found for edit ID:', targetId);
+        return;
+    }
+
+    document.getElementById('peralatan-id').value = targetId;
+    document.getElementById('kategori-peralatan').value = data.kategori || '';
+    document.getElementById('nama-peralatan').value = data.namaPeralatan || '';
+    document.getElementById('kuantiti-peralatan').value = data.kuantiti || 0;
+
+    // Update modal UI
+    const modal = document.getElementById('modal-peralatan');
+    if (modal) {
+        modal.querySelector('h3').textContent = 'Edit Peralatan';
+        document.getElementById('btn-submit-peralatan').textContent = 'Kemaskini';
+    }
+
+    openModal('modal-peralatan');
+}
+
 function renderPeralatan() {
     const container = document.getElementById('peralatan-list');
 
@@ -1575,32 +1689,60 @@ function renderPeralatan() {
         return;
     }
 
-    container.innerHTML = peralatan.map(p => {
+    let html = `
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead class="bg-slate-50">
+                <tr>
+                    <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-widest">Peralatan</th>
+                    <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-widest">Kategori</th>
+                    <th class="px-4 py-3 text-center text-xs font-black text-slate-500 uppercase tracking-widest">Baki/Jumlah</th>
+                    <th class="px-4 py-3 text-right text-xs font-black text-slate-500 uppercase tracking-widest">Tindakan</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+    `;
+
+    html += peralatan.map(p => {
         const kat = kategori.find(k => k.__backendId === p.kategori);
         const bakiSekarang = getAvailableStock(p.__backendId);
         const statusColor = bakiSekarang > 0 ? 'text-green-600' : 'text-red-600';
         return `
-        <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
-                </svg>
-              </div>
-              <div>
-                <p class="font-medium text-slate-800">${p.namaPeralatan || '-'}</p>
-                <p class="text-sm text-slate-500">${kat ? kat.namaKategori || kat.nama : 'Tiada Kategori'}</p>
-                <p class="text-xs ${statusColor} font-semibold mt-1">Baki Sekarang: ${bakiSekarang}/${p.kuantiti || 0} unit</p>
-              </div>
-            </div>
-            <button onclick="openDeleteModal('${p.__backendId}', 'peralatan')" class="text-red-500 hover:text-red-700">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-              </svg>
-            </button>
-          </div>
-            `;
+            <tr class="hover:bg-slate-50 transition-colors">
+                <td class="px-4 py-3">
+                    <p class="font-medium text-slate-800">${p.namaPeralatan || '-'}</p>
+                </td>
+                <td class="px-4 py-3">
+                    <p class="text-sm text-slate-500">${kat ? kat.namaKategori || kat.nama : 'Tiada Kategori'}</p>
+                </td>
+                <td class="px-4 py-3 text-center">
+                    <p class="text-xs ${statusColor} font-bold">${bakiSekarang} / ${p.kuantiti || 0}</p>
+                </td>
+                <td class="px-4 py-3 text-right">
+                    <div class="flex justify-end gap-1">
+                        <button onclick="openEditPeralatan('${p.__backendId}')" class="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Edit">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                            </svg>
+                        </button>
+                        <button onclick="openDeleteModal('${p.__backendId}', 'peralatan')" class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Padam">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
     }).join('');
+
+    html += `
+            </tbody>
+        </table>
+    </div>
+    `;
+
+    container.innerHTML = html;
 }
 
 // Update dropdowns
@@ -2711,7 +2853,7 @@ function confirmDelete() {
     const id = document.getElementById('delete-id').value;
     const type = document.getElementById('delete-type').value;
 
-    DataStore.remove(id).then(() => {
+    DataStore.remove(id, type).then(() => {
         showToast('Item berjaya dipadam');
         closeModal('modal-delete');
 
@@ -4457,6 +4599,8 @@ document.addEventListener('DOMContentLoaded', () => {
         formKategori.addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = document.getElementById('btn-submit-kategori');
+            const editId = document.getElementById('kategori-id').value;
+
             btn.disabled = true;
             btn.textContent = 'Menyimpan...';
 
@@ -4466,11 +4610,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 createdAt: new Date().toISOString()
             };
 
-            const result = await DataStore.add(data);
+            let result;
+            if (editId) {
+                result = await DataStore.update(editId, data);
+            } else {
+                result = await DataStore.add(data);
+            }
+
             if (result.isOk) {
-                showToast('Kategori berjaya ditambah!');
+                showToast(editId ? 'Kategori berjaya dikemaskini!' : 'Kategori berjaya ditambah!');
                 closeModal('modal-kategori');
                 formKategori.reset();
+                document.getElementById('kategori-id').value = '';
             }
             btn.disabled = false;
             btn.textContent = 'Simpan';
@@ -4483,6 +4634,8 @@ document.addEventListener('DOMContentLoaded', () => {
         formPeralatan.addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = document.getElementById('btn-submit-peralatan');
+            const editId = document.getElementById('peralatan-id').value;
+
             btn.disabled = true;
             btn.textContent = 'Menyimpan...';
 
@@ -4495,11 +4648,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 createdAt: new Date().toISOString()
             };
 
-            const result = await DataStore.add(data);
+            let result;
+            if (editId) {
+                result = await DataStore.update(editId, data);
+            } else {
+                result = await DataStore.add(data);
+            }
+
             if (result.isOk) {
-                showToast('Peralatan berjaya ditambah!');
+                showToast(editId ? 'Peralatan berjaya dikemaskini!' : 'Peralatan berjaya ditambah!');
                 closeModal('modal-peralatan');
                 formPeralatan.reset();
+                document.getElementById('peralatan-id').value = '';
             }
             btn.disabled = false;
             btn.textContent = 'Simpan';
