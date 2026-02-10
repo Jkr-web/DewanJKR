@@ -12,14 +12,38 @@
  * 5. Copy URL deployment ke script.js
  */
 
-// ===== CONFIGURATION =====
-const SHEET_NAMES = {
-    permohonan: 'Permohonan',
-    kategori: 'Kategori',
-    peralatan: 'Peralatan',
-    tetapan: 'Tetapan',
-    admin: 'Admin',
-    log_stok: 'LogStok'
+// ===== CONFIGURATION (TETAPAN) =====
+// ANDA BOLEH TAMBAH SHEET BARU DI SINI
+const SHEET_CONFIG = {
+    permohonan: {
+        name: 'Permohonan',
+        headers: ['__backendId', 'noPermohonan', 'nama', 'email', 'nomorTelefon', 'cawangan', 'jenisPermohonan', 'items', 'itemsData', 'tarikhMulaPinjam', 'tarikhPulang', 'tujuan', 'status', 'catatan', 'createdAt']
+    },
+    kategori: {
+        name: 'Kategori',
+        headers: ['__backendId', 'namaKategori', 'createdAt']
+    },
+    peralatan: {
+        name: 'Peralatan',
+        headers: ['__backendId', 'kategori', 'namaPeralatan', 'kuantiti', 'kuantitiTersedia', 'totalBaru', 'totalRosak', 'lastUpdateBaru', 'lastUpdateRosak', 'lastUpdateJumlah', 'createdAt']
+    },
+    tetapan: {
+        name: 'Tetapan',
+        headers: ['__backendId', 'key', 'value', 'updatedAt']
+    },
+    admin: {
+        name: 'Admin',
+        headers: ['__backendId', 'nama', 'email', 'role', 'addedAt']
+    },
+    log_stok: {
+        name: 'LogStok',
+        headers: ['__backendId', 'peralatanId', 'namaPeralatan', 'jenisPerubahan', 'kuantiti', 'catatan', 'timestamp']
+    },
+    // CONTOH: Jika anda mahu tambah sheet 'Peserta'
+    // peserta: {
+    //     name: 'SenaraiPeserta',
+    //     headers: ['__backendId', 'nama', 'ic', 'phone']
+    // }
 };
 
 // ===== MAIN HANDLERS =====
@@ -103,46 +127,30 @@ function doPost(e) {
 // ===== DATA OPERATIONS =====
 
 /**
- * Get all data from all sheets
+ * Get headers for a specific data type
+ * (This function is now redundant as headers are in SHEET_CONFIG)
+ */
+function getHeadersForType(type) {
+    const config = SHEET_CONFIG[type];
+    return config ? config.headers : [];
+}
+
+/**
+ * Get all data from all sheets defined in SHEET_CONFIG
  */
 function getAllData() {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const allData = [];
 
-    // Get Permohonan
-    const permohonanSheet = getSheetRobust(ss, SHEET_NAMES.permohonan);
-    if (permohonanSheet) {
-        const permohonanData = getSheetData(ss, permohonanSheet.getName());
-        permohonanData.forEach(row => { row.type = 'permohonan'; allData.push(row); });
-    }
+    Object.keys(SHEET_CONFIG).forEach(type => {
+        const config = SHEET_CONFIG[type];
+        const sheet = getSheetRobust(ss, config.name);
 
-    // Get Kategori
-    const kategoriSheet = getSheetRobust(ss, SHEET_NAMES.kategori);
-    if (kategoriSheet) {
-        const kategoriData = getSheetData(ss, kategoriSheet.getName());
-        kategoriData.forEach(row => { row.type = 'kategori'; allData.push(row); });
-    }
-
-    // Get Peralatan
-    const peralatanSheet = getSheetRobust(ss, SHEET_NAMES.peralatan);
-    if (peralatanSheet) {
-        const peralatanData = getSheetData(ss, peralatanSheet.getName());
-        peralatanData.forEach(row => { row.type = 'peralatan'; allData.push(row); });
-    }
-
-    // Get Admin
-    const adminSheet = getSheetRobust(ss, SHEET_NAMES.admin);
-    if (adminSheet) {
-        const adminData = getSheetData(ss, adminSheet.getName());
-        adminData.forEach(row => { row.type = 'admin'; allData.push(row); });
-    }
-
-    // Get Log Stok
-    const logStokSheet = getSheetRobust(ss, SHEET_NAMES.log_stok);
-    if (logStokSheet) {
-        const logStokData = getSheetData(ss, logStokSheet.getName());
-        logStokData.forEach(row => { row.type = 'log_stok'; allData.push(row); });
-    }
+        if (sheet) {
+            const data = getSheetData(ss, sheet.getName());
+            data.forEach(row => { row.type = type; allData.push(row); });
+        }
+    });
 
     return { success: true, data: allData };
 }
@@ -152,10 +160,12 @@ function getAllData() {
  */
 function getDataByType(type) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheetName = SHEET_NAMES[type] || SHEET_NAMES.permohonan;
-    const sheet = getSheetRobust(ss, sheetName);
+    const config = SHEET_CONFIG[type];
 
-    if (!sheet) return { success: false, error: 'Sheet not found: ' + sheetName };
+    if (!config) return { success: false, error: 'Unknown type: ' + type };
+
+    const sheet = getSheetRobust(ss, config.name);
+    if (!sheet) return { success: false, error: 'Sheet not found: ' + config.name };
 
     const data = getSheetData(ss, sheet.getName());
     data.forEach(row => row.type = type);
@@ -192,11 +202,21 @@ function getSheetData(ss, sheetName) {
  */
 function addData(type, item) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheetName = SHEET_NAMES[type] || SHEET_NAMES.permohonan;
-    const sheet = getSheetRobust(ss, sheetName);
+    const config = SHEET_CONFIG[type];
 
+    if (!config) return { success: false, error: 'Unknown type: ' + type };
+
+    let sheet = getSheetRobust(ss, config.name);
+
+    // Auto-create sheet if it doesn't exist
     if (!sheet) {
-        return { success: false, error: 'Sheet not found: ' + sheetName };
+        sheet = ss.insertSheet(config.name);
+        if (config.headers && config.headers.length > 0) {
+            sheet.getRange(1, 1, 1, config.headers.length).setValues([config.headers]);
+            // Style header
+            sheet.getRange(1, 1, 1, config.headers.length).setFontWeight('bold').setBackground('#f3f4f6');
+            sheet.setFrozenRows(1);
+        }
     }
 
     // Get headers
@@ -221,19 +241,19 @@ function addData(type, item) {
  */
 function updateData(type, id, item) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheetName = SHEET_NAMES[type] || SHEET_NAMES.permohonan;
-    const sheet = getSheetRobust(ss, sheetName);
+    const config = SHEET_CONFIG[type];
 
-    if (!sheet) {
-        return { success: false, error: 'Sheet not found: ' + sheetName };
-    }
+    if (!config) return { success: false, error: 'Unknown type: ' + type };
+
+    const sheet = getSheetRobust(ss, config.name);
+    if (!sheet) return { success: false, error: 'Sheet not found: ' + config.name };
 
     const data = sheet.getDataRange().getValues();
     const headers = data[0].map(h => h ? h.toString().trim() : '');
     const idColIndex = headers.findIndex(h => h.toLowerCase() === '__backendid');
 
     if (idColIndex === -1) {
-        return { success: false, error: '__backendId column not found in sheet: ' + sheetName };
+        return { success: false, error: '__backendId column not found in sheet: ' + config.name };
     }
 
     const targetId = String(id).trim();
@@ -262,7 +282,7 @@ function updateData(type, id, item) {
         }
     }
 
-    return { success: false, error: 'ID not found in sheet [' + sheetName + ']: ' + targetId };
+    return { success: false, error: 'ID not found in sheet [' + config.name + ']: ' + targetId };
 }
 
 /**
@@ -270,19 +290,19 @@ function updateData(type, id, item) {
  */
 function deleteData(type, id) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheetName = SHEET_NAMES[type] || SHEET_NAMES.permohonan;
-    const sheet = getSheetRobust(ss, sheetName);
+    const config = SHEET_CONFIG[type];
 
-    if (!sheet) {
-        return { success: false, error: 'Sheet not found: ' + sheetName };
-    }
+    if (!config) return { success: false, error: 'Unknown type: ' + type };
+
+    const sheet = getSheetRobust(ss, config.name);
+    if (!sheet) return { success: false, error: 'Sheet not found: ' + config.name };
 
     const data = sheet.getDataRange().getValues();
     const headers = data[0].map(h => h ? h.toString().trim() : '');
     const idColIndex = headers.findIndex(h => h.toLowerCase() === '__backendid');
 
     if (idColIndex === -1) {
-        return { success: false, error: '__backendId column not found in sheet: ' + sheetName };
+        return { success: false, error: '__backendId column not found in sheet: ' + config.name };
     }
 
     const targetId = String(id).trim();
@@ -296,7 +316,7 @@ function deleteData(type, id) {
         }
     }
 
-    return { success: false, error: 'ID not found in sheet [' + sheetName + ']: ' + targetId };
+    return { success: false, error: 'ID not found in sheet [' + config.name + ']: ' + targetId };
 }
 
 /**
@@ -304,19 +324,20 @@ function deleteData(type, id) {
  */
 function bulkAddData(type, items) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheetName = SHEET_NAMES[type] || SHEET_NAMES.permohonan;
-    const sheet = getSheetRobust(ss, sheetName);
+    const config = SHEET_CONFIG[type];
 
-    if (!sheet) {
-        return { success: false, error: 'Sheet not found: ' + sheetName };
-    }
+    if (!config) return { success: false, error: 'Unknown type: ' + type };
+
+    const sheet = getSheetRobust(ss, config.name);
+    if (!sheet) return { success: false, error: 'Sheet not found: ' + config.name };
 
     const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
         .map(h => h ? h.toString().trim() : '');
 
     const rows = items.map(item => {
         return headers.map(header => {
-            return item[header] !== undefined ? item[header] : '';
+            const val = getValueFromItemCaseInsensitive(item, header);
+            return val !== undefined ? prepareValueForSheet(val) : '';
         });
     });
 
@@ -332,23 +353,27 @@ function bulkAddData(type, items) {
  */
 function syncAllData(allData) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const results = {};
 
-    // Group data by type
-    const grouped = {
-        permohonan: allData.filter(d => d.type === 'permohonan'),
-        kategori: allData.filter(d => d.type === 'kategori'),
-        peralatan: allData.filter(d => d.type === 'peralatan'),
-        tetapan: allData.filter(d => d.type === 'tetapan'),
-        admin: allData.filter(d => d.type === 'admin'),
-        log_stok: allData.filter(d => d.type === 'log_stok')
-    };
+    // Iterate through all configured types
+    Object.keys(SHEET_CONFIG).forEach(type => {
+        const config = SHEET_CONFIG[type];
+        const sheetName = config.name;
 
-    // Sync each sheet
-    Object.keys(grouped).forEach(type => {
-        const sheetName = SHEET_NAMES[type];
-        const sheet = getSheetRobust(ss, sheetName);
+        // Filter data for this type
+        const items = allData.filter(d => d.type === type);
 
-        if (!sheet) return;
+        // Auto create sheet if needed
+        let sheet = getSheetRobust(ss, sheetName);
+        if (!sheet) {
+            // Only create if we have data or want to initialize
+            if (config.headers && config.headers.length > 0) {
+                sheet = ss.insertSheet(sheetName);
+                sheet.getRange(1, 1, 1, config.headers.length).setValues([config.headers]);
+            } else {
+                return;
+            }
+        }
 
         const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
             .map(h => h ? h.toString().trim() : '');
@@ -360,7 +385,6 @@ function syncAllData(allData) {
         }
 
         // Add new data
-        const items = grouped[type];
         if (items.length > 0) {
             const rows = items.map(item => {
                 return headers.map(header => {
@@ -372,16 +396,14 @@ function syncAllData(allData) {
 
             sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
         }
+
+        results[type] = items.length;
     });
 
     return {
-        success: true, message: 'All data synced successfully', counts: {
-            permohonan: grouped.permohonan.length,
-            kategori: grouped.kategori.length,
-            peralatan: grouped.peralatan.length,
-            admin: grouped.admin.length,
-            log_stok: grouped.log_stok.length
-        }
+        success: true,
+        message: 'All data synced successfully',
+        counts: results
     };
 }
 
@@ -393,56 +415,15 @@ function syncAllData(allData) {
 function initializeSheets() {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
 
-    // Permohonan headers
-    const permohonanHeaders = [
-        '__backendId', 'noPermohonan', 'nama', 'email', 'nomorTelefon', 'cawangan',
-        'jenisPermohonan', 'items', 'itemsData', 'tarikhMulaPinjam',
-        'tarikhPulang', 'tujuan', 'status', 'catatan', 'createdAt'
-    ];
+    Object.keys(SHEET_CONFIG).forEach(type => {
+        const config = SHEET_CONFIG[type];
 
-    // Kategori headers
-    const kategoriHeaders = ['__backendId', 'namaKategori', 'createdAt'];
-
-    // Peralatan headers
-    const peralatanHeaders = [
-        '__backendId',
-        'kategori',
-        'namaPeralatan',
-        'kuantiti',
-        'kuantitiTersedia',
-        'totalBaru',
-        'totalRosak',
-        'lastUpdateBaru',
-        'lastUpdateRosak',
-        'lastUpdateJumlah',
-        'createdAt'
-    ];
-
-    // Tetapan headers
-    const tetapanHeaders = ['__backendId', 'key', 'value', 'updatedAt'];
-
-    // Admin headers
-    const adminHeaders = ['__backendId', 'nama', 'email', 'role', 'addedAt'];
-
-    // Log Stok Headers
-    const logStokHeaders = ['__backendId', 'peralatanId', 'namaPeralatan', 'jenisPerubahan', 'kuantiti', 'catatan', 'timestamp'];
-
-    const sheetsConfig = [
-        { name: SHEET_NAMES.permohonan, headers: permohonanHeaders },
-        { name: SHEET_NAMES.kategori, headers: kategoriHeaders },
-        { name: SHEET_NAMES.peralatan, headers: peralatanHeaders },
-        { name: SHEET_NAMES.tetapan, headers: tetapanHeaders },
-        { name: SHEET_NAMES.admin, headers: adminHeaders },
-        { name: SHEET_NAMES.log_stok, headers: logStokHeaders }
-    ];
-
-    sheetsConfig.forEach(cfg => {
-        let sheet = ss.getSheetByName(cfg.name);
+        let sheet = ss.getSheetByName(config.name);
         if (!sheet) {
-            sheet = ss.insertSheet(cfg.name);
+            sheet = ss.insertSheet(config.name);
         }
         sheet.clear();
-        sheet.getRange(1, 1, 1, cfg.headers.length).setValues([cfg.headers]);
+        sheet.getRange(1, 1, 1, config.headers.length).setValues([config.headers]);
         sheet.setFrozenRows(1);
     });
 

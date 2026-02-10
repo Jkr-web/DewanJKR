@@ -34,7 +34,7 @@ if (document.readyState === 'loading') {
 
 // ===== GOOGLE SHEETS DATABASE INTEGRATION =====
 // PENTING: Gantikan URL ini dengan URL deployment Apps Script anda
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwrRj6FHq7Qfo72p0LEaIz3V6fOieI5gJqHojNKjaKWaieMBn_hXbCmJEt12FYyiRfxBg/exec'; // <- TUKAR INI!
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwmELD85GawQHlq2t_d-jB-yFO8Zt6cQOs86wVlLwzzFx2cgjbkecADiHmimJ7h0c8G/exec'; // <- TUKAR INI!
 
 // Google Sheets Database API
 const GoogleSheetsDB = {
@@ -1277,51 +1277,75 @@ if (loginSubmitBtn) {
     });
 }
 
-// Logout function
+// Logout function with confirmation
 function logout() {
-    console.log('🚪 Logout triggered');
+    // Show confirmation modal
+    const confirmed = confirm('🚪 Adakah anda pasti mahu log keluar?\n\nSemua data cache akan dibersihkan dan anda perlu log masuk semula.');
 
-    // Clear UI first
+    if (!confirmed) {
+        console.log('ℹ️ Logout cancelled by user');
+        return;
+    }
+
+    console.log('🚪 Logout confirmed - clearing all data...');
+
+    // 1. Clear all localStorage (except Google Sheets config and portal settings)
+    const sheetsConfig = localStorage.getItem('sheetsConfig');
+    const portalBg = localStorage.getItem('portalBgImage');
+    const portalBgSize = localStorage.getItem('portalBgSize');
+    const portalBgPos = localStorage.getItem('portalBgPosition');
+    const portalLogo = localStorage.getItem('portalLogo');
+    const portalLogoFit = localStorage.getItem('portalLogoFit');
+    const autoLogout = localStorage.getItem('portalAutoLogout');
+
+    // Clear everything
+    localStorage.clear();
+
+    // Restore important settings
+    if (sheetsConfig) localStorage.setItem('sheetsConfig', sheetsConfig);
+    if (portalBg) localStorage.setItem('portalBgImage', portalBg);
+    if (portalBgSize) localStorage.setItem('portalBgSize', portalBgSize);
+    if (portalBgPos) localStorage.setItem('portalBgPosition', portalBgPos);
+    if (portalLogo) localStorage.setItem('portalLogo', portalLogo);
+    if (portalLogoFit) localStorage.setItem('portalLogoFit', portalLogoFit);
+    if (autoLogout) localStorage.setItem('portalAutoLogout', autoLogout);
+
+    // 2. Clear session storage
+    sessionStorage.clear();
+
+    // 3. Reset global variables
     isLoggedIn = false;
-    localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('loginType');
-    localStorage.setItem('lastPage', 'dashboard');
-    localStorage.removeItem('userEmail');
-    localStorage.removeItem('userName');
+    allData = [];
 
-    const appEl = document.getElementById('app');
-    const loginEl = document.getElementById('login-page');
-
-    if (appEl) {
-        appEl.classList.add('hidden');
-        appEl.style.display = 'none';
-    }
-    if (loginEl) {
-        loginEl.classList.remove('hidden');
-        loginEl.style.display = 'flex';
-    }
-
-    // Clear form
-    const usernameInput = document.getElementById('username');
-    const passwordInput = document.getElementById('password');
-    if (usernameInput) usernameInput.value = '';
-    if (passwordInput) passwordInput.value = '';
-
-    // Firebase Sign Out (if available)
+    // 4. Firebase Sign Out (if available)
     if (window.auth && window.firebaseInitialized) {
         window.auth.signOut()
             .then(() => {
                 console.log('✅ Firebase signed out');
-                window.location.reload(); // Force reload to clear all states
+                performLogoutRedirect();
             })
             .catch((error) => {
                 console.error('⚠️ Firebase logout error (non-critical):', error.message);
-                window.location.reload();
+                performLogoutRedirect();
             });
     } else {
         console.log('ℹ️ Firebase not initialized, skipping Firebase sign-out');
-        window.location.reload();
+        performLogoutRedirect();
     }
+}
+
+// Helper function to perform logout redirect
+function performLogoutRedirect() {
+    // Clear URL hash
+    window.location.hash = '';
+
+    // Show toast
+    showToast('✅ Anda telah berjaya log keluar', 'success');
+
+    // Force reload to login page after short delay
+    setTimeout(() => {
+        window.location.href = window.location.origin + window.location.pathname;
+    }, 500);
 }
 
 // Login credentials
@@ -3110,10 +3134,30 @@ function openDeleteModal(id, type) {
 function confirmDelete() {
     const id = document.getElementById('delete-id').value;
     const type = document.getElementById('delete-type').value;
+    let deletedItemName = '';
 
-    DataStore.remove(id, type).then(() => {
+    // Get name before deletion for logging
+    if (type === 'peralatan') {
+        const item = allData.find(d => String(d.__backendId) === String(id));
+        if (item) deletedItemName = item.namaPeralatan;
+    }
+
+    DataStore.remove(id, type).then(async () => {
         showToast('Item berjaya dipadam');
         closeModal('modal-delete');
+
+        // Log Deletion for Stock History
+        if (type === 'peralatan' && deletedItemName) {
+            await DataStore.add({
+                type: 'log_stok',
+                peralatanId: id,
+                namaPeralatan: deletedItemName,
+                jenisPerubahan: 'Hapus Item',
+                kuantiti: 0,
+                catatan: 'Item telah dipadam dari inventori',
+                timestamp: new Date().toISOString()
+            });
+        }
 
         // Refresh related UIs
         if (type === 'permohonan') {
@@ -3331,7 +3375,7 @@ function renderLaporanPeralatanTable(usageData) {
                 </td>
                 <td class="px-4 py-4 text-right">
                     <span class="status-badge ${hasStock ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}">
-                        ${hasStock ? 'Sedia' : 'Habis'}
+                        ${hasStock ? 'Sedia Digunakan' : 'Habis'}
                     </span>
                 </td>
             </tr>
@@ -3505,7 +3549,7 @@ function renderLaporanDewanTable(permohonanData) {
                             <p class="font-bold">${new Date(p.tarikhMulaPinjam).toLocaleDateString('ms-MY', { day: '2-digit', month: 'short', year: 'numeric' })} - ${new Date(p.tarikhPulang).toLocaleDateString('ms-MY', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
                         </div>
                     </td>
-                    <td class="px-6 py-4 text-center"><span class="px-2 py-1 bg-orange-200 text-orange-800 text-[9px] font-bold rounded-full uppercase tracking-widest shadow-sm animate-pulse">Sedang</span></td>
+                    <td class="px-6 py-4 text-center"><span class="px-2 py-1 bg-orange-200 text-orange-800 text-[9px] font-bold rounded-full uppercase tracking-widest shadow-sm animate-pulse">Sedang Berlangsung</span></td>
                     <td class="px-6 py-4 text-right text-[10px] font-black text-orange-600 uppercase tracking-tighter">Aktif</td>
                 </tr>
             `;
@@ -3537,7 +3581,7 @@ function renderLaporanDewanTable(permohonanData) {
                         </div>
                     </td>
                     <td class="px-6 py-4 text-center"><span class="px-2 py-1 bg-indigo-100 text-indigo-700 text-[9px] font-bold rounded-full uppercase tracking-widest shadow-sm">Booking</span></td>
-                    <td class="px-6 py-4 text-right text-[10px] font-black text-indigo-600 uppercase tracking-tighter">Sedia</td>
+                    <td class="px-6 py-4 text-right text-[10px] font-black text-indigo-600 uppercase tracking-tighter">Sedia </td>
                 </tr>
             `;
         });
@@ -4004,6 +4048,7 @@ function saveBgSettings() {
     const size = document.getElementById('bg-size').value;
     const pos = document.getElementById('bg-position').value;
 
+    // Save to Google Sheets AND localStorage
     if (currentBgBase64) {
         localStorage.setItem('portalBgImage', currentBgBase64);
         savePortalSetting('portalBgImage', currentBgBase64);
@@ -4011,11 +4056,12 @@ function saveBgSettings() {
 
     localStorage.setItem('portalBgSize', size);
     localStorage.setItem('portalBgPosition', pos);
+
     savePortalSetting('portalBgSize', size);
     savePortalSetting('portalBgPosition', pos);
 
     applyBgSettings();
-    showToast('✅ Tetapan latar belakang berjaya disimpan (Online Sync)');
+    showToast('✅ Tetapan latar belakang berjaya disimpan (Local & Online)');
 }
 
 async function savePortalSetting(key, val) {
@@ -4038,7 +4084,7 @@ async function savePortalSetting(key, val) {
 }
 
 function applyBgSettings() {
-    // Try to get from DataStore first for most recent online data, fallback to localStorage
+    // Load from Google Sheets OR localStorage (Priority: Google Sheets > LocalStorage)
     const bgFromData = allData.find(d => d.key === 'portalBgImage')?.value;
     const savedBg = bgFromData || localStorage.getItem('portalBgImage');
 
@@ -5479,7 +5525,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Log Tambah (Only if editing existing item)
                 if (editId) {
-                    DataStore.add({
+                    await DataStore.add({
                         type: 'log_stok',
                         peralatanId: editId,
                         namaPeralatan: document.getElementById('nama-peralatan').value,
@@ -5502,7 +5548,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Log Rosak (Only if editing existing item)
                 if (editId) {
-                    DataStore.add({
+                    await DataStore.add({
                         type: 'log_stok',
                         peralatanId: editId,
                         namaPeralatan: document.getElementById('nama-peralatan').value,
