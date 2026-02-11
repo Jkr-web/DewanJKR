@@ -855,3 +855,24 @@ body {
         width: 90%;
     }
 }
+
+/* Pastikan QR Image sentiasa di tengah */
+#qrcode-container img {
+    margin: 0 auto;
+}
+
+/* Memastikan modal QR berada di lapisan paling atas */
+#modal-qr {
+    z-index: 99999;
+}
+
+/* Animasi mengikut style anda */
+.modal-content.animate-slide {
+    animation: slideIn 0.3s ease-out;
+}
+
+/* Hover effect pada butang download/share */
+.compact-btn-file:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}

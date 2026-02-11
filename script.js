@@ -5909,3 +5909,62 @@ document.addEventListener('DOMContentLoaded', attachUserFormHandler);
 
 // Helper to save portal settings to Sheets - Consolidated with previous definition
 // Removing duplicate.
+
+let currentShareUrl = "";
+
+window.showQR = function () {
+    // 1. Ambil URL semasa dan tambah parameter page
+    currentShareUrl = window.location.origin + window.location.pathname + "?page=user-form";
+
+    // 2. Papar link teks
+    document.getElementById("qr-link-text").innerText = currentShareUrl;
+
+    // 3. Bersihkan container dan jana QR
+    const container = document.getElementById("qrcode-container");
+    container.innerHTML = "";
+
+    new QRCode(container, {
+        text: currentShareUrl,
+        width: 250,
+        height: 250,
+        colorDark: "#1e293b",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.H
+    });
+
+    // 4. Papar modal menggunakan class 'active' (ikut CSS anda)
+    document.getElementById('modal-qr').classList.add('active');
+};
+
+// Fungsi Download QR
+window.downloadQR = function () {
+    const canvas = document.querySelector("#qrcode-container canvas");
+    if (canvas) {
+        const link = document.createElement('a');
+        link.download = 'QR_Borang.png';
+        link.href = canvas.toDataURL();
+        link.click();
+    }
+};
+
+// Fungsi Share
+window.shareLink = async function () {
+    if (navigator.share) {
+        try {
+            await navigator.share({
+                title: 'Borang Permohonan',
+                url: currentShareUrl
+            });
+        } catch (err) { console.log("Batal"); }
+    } else {
+        navigator.clipboard.writeText(currentShareUrl);
+        alert("Pautan disalin ke clipboard!");
+    }
+};
+
+// Fungsi Tutup Modal
+window.closeModal = function (id) {
+    document.getElementById(id).classList.remove('active');
+};
+
+
