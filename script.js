@@ -20,6 +20,32 @@ function updateClock() {
     } catch (e) { console.error('Clock error:', e); }
 }
 
+// ===== PASSWORD VISIBILITY TOGGLE =====
+window.togglePasswordVisibility = function (inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+
+    const isPassword = input.type === 'password';
+    input.type = isPassword ? 'text' : 'password';
+
+    // Update icon
+    const svg = btn.querySelector('svg');
+    if (svg) {
+        if (isPassword) {
+            // Switch to Eye Closed Icon
+            svg.innerHTML = `
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7a10.057 10.057 0 012.183-3.043m3.016-1.558A9.992 9.992 0 0112 5c4.478 0 8.268 2.943 9.542 7a10.057 10.057 0 01-2.183 3.043M9.9 9.9a3 3 0 114.2 4.2M3 3l18 18"/>
+            `;
+        } else {
+            // Switch to Eye Open Icon
+            svg.innerHTML = `
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+            `;
+        }
+    }
+}
+
 function startClock() {
     if (window.clockInterval) clearInterval(window.clockInterval);
     updateClock();
@@ -214,71 +240,87 @@ function getFirebaseReady() {
         }, 10000);
     });
 
-    // Helper to show login errors in the UI
-    function showLoginError(message, duration = 7000) {
-        const errDiv = document.getElementById('login-error');
-        const details = document.getElementById('login-error-details');
-        if (errDiv) errDiv.classList.remove('hidden');
-        if (details) {
-            details.textContent = message;
-            details.classList.remove('hidden');
+}
+
+function showLoginError(message, duration = 7000) {
+    const errDiv = document.getElementById('login-error');
+    const msgEl = document.getElementById('login-error-msg');
+    const details = document.getElementById('login-error-details');
+
+    if (errDiv) {
+        errDiv.classList.remove('hidden');
+        errDiv.classList.add('flex');
+    }
+    if (msgEl) msgEl.textContent = message;
+
+    console.error('Login error:', message);
+
+    setTimeout(() => {
+        if (errDiv) {
+            errDiv.classList.add('hidden');
+            errDiv.classList.remove('flex');
         }
-        console.error('Login error:', message);
-        // Auto-hide after a while
-        setTimeout(() => {
-            if (errDiv) errDiv.classList.add('hidden');
-            if (details) details.classList.add('hidden');
-        }, duration);
+    }, duration);
+}
+
+// Load Firebase SDKs dynamically if they are not already present. This helps when CDN is blocked or network is slow.
+async function ensureFirebaseSDKs(timeoutMs = 10000) {
+    if (typeof firebase !== 'undefined') return;
+    if (window._firebaseLoadAttempted) return; // prevent duplicate attempts
+    window._firebaseLoadAttempted = true;
+
+    const statusEl = document.getElementById('login-status');
+    if (statusEl) {
+        statusEl.textContent = 'Memuat Firebase SDK...';
+        statusEl.classList.remove('hidden');
     }
 
-    // Load Firebase SDKs dynamically if they are not already present. This helps when CDN is blocked or network is slow.
-    async function ensureFirebaseSDKs(timeoutMs = 10000) {
-        if (typeof firebase !== 'undefined') return;
-        if (window._firebaseLoadAttempted) return; // prevent duplicate attempts
-        window._firebaseLoadAttempted = true;
+    const urls = [
+        'https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js',
+        'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js',
+        'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js'
+    ];
 
-        const statusEl = document.getElementById('login-status');
+    function loadScript(url) {
+        return new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = url;
+            s.async = true;
+            s.onload = () => resolve();
+            s.onerror = () => reject(new Error('Gagal memuat ' + url));
+            document.head.appendChild(s);
+        });
+    }
+
+    // Timeout wrapper
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout memuat Firebase SDK')), timeoutMs));
+
+    try {
+        await Promise.race([Promise.all(urls.map(loadScript)), timeoutPromise]);
         if (statusEl) {
-            statusEl.textContent = 'Memuat Firebase SDK...';
-            statusEl.classList.remove('hidden');
+            statusEl.textContent = 'Firebase SDK dimuat';
+            setTimeout(() => statusEl.classList.add('hidden'), 1500);
         }
-
-        const urls = [
-            'https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js',
-            'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js',
-            'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js'
-        ];
-
-        function loadScript(url) {
-            return new Promise((resolve, reject) => {
-                const s = document.createElement('script');
-                s.src = url;
-                s.async = true;
-                s.onload = () => resolve();
-                s.onerror = () => reject(new Error('Gagal memuat ' + url));
-                document.head.appendChild(s);
-            });
+        console.log('✅ Firebase SDKs loaded dynamically');
+    } catch (err) {
+        if (statusEl) {
+            statusEl.textContent = 'Gagal memuat Firebase SDK';
         }
-
-        // Timeout wrapper
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout memuat Firebase SDK')), timeoutMs));
-
-        try {
-            await Promise.race([Promise.all(urls.map(loadScript)), timeoutPromise]);
-            if (statusEl) {
-                statusEl.textContent = 'Firebase SDK dimuat';
-                setTimeout(() => statusEl.classList.add('hidden'), 1500);
-            }
-            console.log('✅ Firebase SDKs loaded dynamically');
-        } catch (err) {
-            if (statusEl) {
-                statusEl.textContent = 'Gagal memuat Firebase SDK';
-            }
-            console.error('❌ ensureFirebaseSDKs error:', err);
-            throw err;
-        }
+        console.error('❌ ensureFirebaseSDKs error:', err);
+        throw err;
     }
 }
+
+// --- FIREBASE CONFIGURATION ---
+const firebaseConfig = {
+    apiKey: "AIzaSyAYBhrerG2yfHk-xFna0tLI-QbaVDNaV5M",
+    authDomain: "sistem-alat-ganti.firebaseapp.com",
+    projectId: "sistem-alat-ganti",
+    storageBucket: "sistem-alat-ganti.firebasestorage.app",
+    messagingSenderId: "974832583504",
+    appId: "1:974832583504:web:2001b035fb35093c252255",
+    measurementId: "G-44E4RC3EC8"
+};
 
 // Initialize Firebase when page is ready
 async function initializeFirebase() {
@@ -300,13 +342,6 @@ async function initializeFirebase() {
     }
 
     try {
-        const firebaseConfig = {
-            apiKey: "AIzaSyAYBhrerG2yfHk-xFna0tLI-QbaVDNaV5M",
-            authDomain: "sistem-alat-ganti.firebaseapp.com",
-            projectId: "sistem-alat-ganti",
-            appId: "1:974832583504:web:b3c94e86651d299d252255"
-        };
-
         // Initialize Firebase if not already initialized
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
@@ -314,6 +349,7 @@ async function initializeFirebase() {
         }
 
         auth = firebase.auth();
+        window.auth = auth; // Expose globally for reset password function
         // Initialize Firestore if available (we included the firestore SDK)
         if (typeof firebase.firestore === 'function') {
             db = firebase.firestore();
@@ -347,16 +383,12 @@ function setupAuthListener() {
             if (user) {
                 console.log('✅ User logged in:', user.email);
 
-                // Check authorization
-                const admins = allData.filter(d => d.type === 'admin');
-                const adminExists = admins.some(a => a.email.toLowerCase() === user.email.toLowerCase());
+                // Check for explicit logged-in intent
+                const isLoggedInFlag = localStorage.getItem('isLoggedIn') === 'true';
+                const isManualStarted = sessionStorage.getItem('manualLoginStarted') === 'true' || sessionStorage.getItem('manualLoginInProgress') === 'true';
 
-                // Fallback for Master Admin or if it's the first time
-                const isMaster = user.email.toLowerCase() === 'admin@gmail.com' || user.email.toLowerCase() === ADMIN_USERNAME.toLowerCase() + '@gmail.com';
-
-                if (!adminExists && !isMaster && admins.length > 0) {
-                    console.warn('⛔ Unauthorized login attempt:', user.email);
-                    showLoginError('Akses ditolak. Email anda tidak berdaftar sebagai pentadbir.');
+                if (!isLoggedInFlag && !isManualStarted) {
+                    console.log('🛑 Auth state detected but isLoggedIn flag is missing/false. Forcing signout to prevent auto-login loop.');
                     auth.signOut();
                     return;
                 }
@@ -379,32 +411,64 @@ function setupAuthListener() {
                             if (docSnap.exists) {
                                 const u = docSnap.data();
                                 const finalName = u.name || userName;
+
+                                // PENTING: Jika disekat, jangan benarkan masuk!
+                                if (u.status === 'Disekat') {
+                                    console.warn('⛔ Akaun disekat (dari listener):', user.email);
+                                    showLoginError('Akses ditolak. Akaun anda telah disekat. Sila hubungi pentadbir utama.');
+                                    auth.signOut();
+                                    return;
+                                }
+
                                 localStorage.setItem('userRole', u.role || '');
                                 localStorage.setItem('userName', finalName);
                                 updateUserUI(finalName, user.email, user.photoURL);
+
+                                // Hanya tunjuk UI jika status OK dan bukan sedang manual login
+                                if (!sessionStorage.getItem('manualLoginInProgress')) {
+                                    finalizeLoginUI();
+                                }
+                            } else {
+                                // Jika profil Firestore tidak wujud, sekat akses (kecuali jika master email yg anda tetapkan secara manual di Firebase)
+                                console.warn('⛔ Profil Firestore tidak dijumpai:', user.email);
+                                if (!sessionStorage.getItem('manualLoginInProgress')) {
+                                    showLoginError('Akses ditolak. Akaun anda tidak berdaftar dalam sistem.');
+                                    auth.signOut();
+                                }
                             }
                         }).catch(err => {
                             console.warn('Firestore read error:', err);
+                            // Fallback jika Firestore problem tapi auth OK
+                            if (!sessionStorage.getItem('manualLoginInProgress')) {
+                                finalizeLoginUI();
+                            }
                         });
+                } else {
+                    // Fallback jika Firestore tak sedia
+                    if (!sessionStorage.getItem('manualLoginInProgress')) {
+                        finalizeLoginUI();
+                    }
                 }
 
-                const pageLogin = document.getElementById('login-page');
-                const pageApp = document.getElementById('app');
+                function finalizeLoginUI() {
+                    const pageLogin = document.getElementById('login-page');
+                    const pageApp = document.getElementById('app');
 
-                if (pageLogin) {
-                    pageLogin.classList.add('hidden');
-                    pageLogin.style.display = 'none';
-                }
-                if (pageApp) {
-                    pageApp.classList.remove('hidden');
-                    pageApp.style.display = 'flex';
-                }
+                    if (pageLogin) {
+                        pageLogin.classList.add('hidden');
+                        pageLogin.style.display = 'none';
+                    }
+                    if (pageApp) {
+                        pageApp.classList.remove('hidden');
+                        pageApp.style.display = 'flex';
+                    }
 
-                if (typeof DataStore !== 'undefined') {
-                    DataStore.notify();
+                    if (typeof DataStore !== 'undefined') {
+                        DataStore.notify();
+                    }
+                    const lastPage = localStorage.getItem('lastPage') || 'dashboard';
+                    showPage(lastPage);
                 }
-                const lastPage = localStorage.getItem('lastPage') || 'dashboard';
-                showPage(lastPage);
             } else {
                 console.log('ℹ️ No user logged in');
 
@@ -441,68 +505,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize Firebase immediately
     initializeFirebase();
 
-    // Setup Google button
-    const googleSignInBtn = document.getElementById('btn-google-signin');
-    if (googleSignInBtn) {
-        googleSignInBtn.addEventListener('click', handleGoogleSignIn);
-        console.log('✅ Google Sign-In button ready');
-    }
+
 });
 
-window.handleGoogleSignIn = async function () {
-    console.log('🔐 Google Sign-In clicked');
 
-    const btn = document.getElementById('btn-google-signin');
-    const originalHTML = btn.innerHTML;
-
-    btn.disabled = true;
-    btn.innerHTML = '<svg class="animate-spin h-5 w-5 text-indigo-600 mx-auto" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
-
-    try {
-        // Wait for Firebase to be ready
-        console.log('⏳ Waiting for Firebase...');
-        await getFirebaseReady();
-
-        if (!auth || !firebaseInitialized || typeof firebase === 'undefined') {
-            console.error('❌ Firebase auth still not ready after wait');
-            btn.disabled = false;
-            btn.innerHTML = originalHTML;
-            alert('⚠️ Sistem belum siap. Sila refresh halaman dan cuba lagi.');
-            return;
-        }
-
-        console.log('✅ Firebase ready, opening sign-in popup...');
-        const provider = new firebase.auth.GoogleAuthProvider();
-        provider.addScope('profile');
-        provider.addScope('email');
-
-        console.log('📱 Opening Google sign-in popup...');
-        const result = await auth.signInWithPopup(provider);
-
-        console.log('✅ Google Sign-In Success:', result.user.email);
-        localStorage.setItem('loginType', 'firebase');
-        // Auth state change listener akan handle UI update automatically
-
-    } catch (error) {
-        console.error('❌ Google Sign-In Error:', error.code, error.message);
-        btn.disabled = false;
-        btn.innerHTML = originalHTML;
-
-        if (error.code === 'auth/popup-closed-by-user') {
-            console.log('ℹ️ User closed login popup');
-            // Just reset button, don't show alert
-        } else if (error.code === 'auth/popup-blocked') {
-            alert('⚠️ Popup diblok oleh browser. Sila benarkan popup untuk domain ini.');
-        } else if (error.code === 'auth/network-request-failed') {
-            alert('❌ Ralat rangkaian. Sila semak sambungan internet Anda.');
-        } else if (error.code === 'auth/invalid-api-key' || error.code === 'auth/configuration-not-found') {
-            alert('❌ Ralat konfigurasi Firebase. Sila hubungi pentadbir sistem.');
-            console.error('Firebase config error - ensure authorized domains are set in Firebase Console');
-        } else {
-            alert('❌ Ralat login: ' + error.message);
-        }
-    }
-};
 
 //form data js untuk bahagian user,admin dan table permohonan form+table
 
@@ -680,8 +686,19 @@ const DataStore = {
     },
 
     save: function (data) {
-        localStorage.setItem(this.key, JSON.stringify(data));
-        allData = data;
+        if (!Array.isArray(data)) return;
+
+        // Process data to ensure IDs exist
+        const processedData = data.map((item, idx) => {
+            if (!item.__backendId) {
+                // Try to use ID if available, otherwise generate temp ID
+                item.__backendId = item.id || `temp_${item.type || 'unknown'}_${idx}_${Date.now()}`;
+            }
+            return item;
+        });
+
+        localStorage.setItem(this.key, JSON.stringify(processedData));
+        allData = processedData;
         this.notify();
     },
 
@@ -792,7 +809,6 @@ const DataStore = {
             { name: 'Kategori Dropdown', fn: updateKategoriDropdown },
             { name: 'User Item Dropdown', fn: updateUserItemDropdown },
             { name: 'Laporan', fn: renderLaporan },
-            { name: 'Admin', fn: renderAdmin },
             { name: 'Background Settings', fn: applyBgSettings },
             { name: 'Logo Settings', fn: applyLogoSettings },
             { name: 'Notifications', fn: updateNotifications }
@@ -1045,15 +1061,7 @@ async function autoLoadFromGoogleSheets() {
         const result = await GoogleSheetsDB.fetchAll();
 
         if (result.success && result.data && result.data.length > 0) {
-            // Save to localStorage and update UI
-            localStorage.setItem('dewanData', JSON.stringify(result.data));
-            allData = result.data;
-
-            // Update UI
-            if (typeof DataStore !== 'undefined') {
-                DataStore.notify();
-            }
-
+            DataStore.save(result.data);
             console.log(`✅ Auto-loaded ${result.data.length} items from Google Sheets`);
 
             // Update status indicator to green
@@ -1061,7 +1069,6 @@ async function autoLoadFromGoogleSheets() {
             const statusText = document.getElementById('sheets-status-text');
             if (indicator) indicator.className = 'w-3 h-3 rounded-full bg-green-500';
             if (statusText) statusText.textContent = '✅ Data dimuat dari Google Sheets';
-
         } else {
             console.log('ℹ️ No data in Google Sheets or fetch failed, using localStorage');
             // Still apply settings even if no data
@@ -1183,74 +1190,197 @@ window.addEventListener('DOMContentLoaded', () => {
 window.handleLogin = async function () {
     const usernameInput = document.getElementById('username');
     const passwordInput = document.getElementById('password');
-    const errorDiv = document.getElementById('login-error');
+    const username = usernameInput.value.trim();
+    const password = passwordInput.value.trim();
+    console.log('🚀 Memulakan log masuk API untuk:', username);
 
-    const username = usernameInput.value;
-    const password = passwordInput.value;
+    // Reset individual errors
+    const userErr = document.getElementById('username-error');
+    const passErr = document.getElementById('password-error');
+    if (userErr) userErr.classList.add('hidden');
+    if (passErr) passErr.classList.add('hidden');
 
-    console.log('Attempting login with:', username);
-    // Quick UI feedback: disable submit and show loading text
-    const submitBtn = document.querySelector('#form-login button[type="submit"]');
+    let hasClientError = false;
+    if (!username || !username.includes('@')) {
+        if (userErr) {
+            userErr.textContent = !username ? 'Sila masukkan email.' : 'Sila masukkan format email yang lengkap (cth: user@gmail.com).';
+            userErr.classList.remove('hidden');
+        }
+        hasClientError = true;
+    }
+    if (!password) {
+        if (passErr) {
+            passErr.textContent = 'Sila masukkan kata laluan.';
+            passErr.classList.remove('hidden');
+        }
+        hasClientError = true;
+    }
+
+    if (hasClientError) return;
+
+    const submitBtn = document.querySelector('#form-login button[type="submit"]') || document.getElementById('btn-login');
     const originalBtnHTML = submitBtn ? submitBtn.innerHTML : null;
+
     if (submitBtn) {
         submitBtn.disabled = true;
         submitBtn.innerHTML = 'Sila tunggu...';
     }
+
     function restoreSubmit() {
         if (submitBtn) {
             submitBtn.disabled = false;
             if (originalBtnHTML) submitBtn.innerHTML = originalBtnHTML;
         }
     }
-    // Try Firebase auth first when available
-    if (window.auth && window.firebaseInitialized) {
-        try {
-            const res = await window.auth.signInWithEmailAndPassword(username, password);
-            console.log('✅ Firebase login success:', res.user.email);
-            localStorage.setItem('isLoggedIn', 'true');
-            localStorage.setItem('loginType', 'firebase'); // Set type
-            restoreSubmit();
-            return;
-        } catch (err) {
-            console.warn('Firebase login failed:', err.code, err.message);
-            if (err.code !== 'auth/user-not-found' && err.code !== 'auth/wrong-password') {
-                showLoginError('Ralat sambungan log masuk: ' + (err.message || err.code));
-                restoreSubmit();
-                return;
-            }
+
+    try {
+        // 1. Firebase Auth Login
+        if (!window.auth) {
+            throw new Error("Firebase Auth belum sedia. Sila refresh.");
         }
-    }
 
-    if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-        isLoggedIn = true;
-        localStorage.setItem('isLoggedIn', 'true'); // Save state
-        localStorage.setItem('loginType', 'local'); // Set type
-        restoreSubmit();
+        console.log('⏳ Mencuba log masuk Firebase Auth...');
+        sessionStorage.setItem('manualLoginInProgress', 'true');
+        const userCred = await window.auth.signInWithEmailAndPassword(username, password);
+        const user = userCred.user;
+        const uid = user.uid;
+        console.log('✅ Auth Berjaya! UID:', uid);
 
-        console.log('✅ Login Successful');
+        // Reset login attempts on SUCCESS
+        localStorage.removeItem('loginAttempts_' + username);
 
-        // Force UI Update
+        // 2. Ambil Data dari Firestore (Gunakan UID as Document ID)
+        console.log('⏳ Mencari profil dakam Firestore (users/' + uid + ')...');
+        if (!window.db) {
+            throw new Error("Firestore belum sedia.");
+        }
+
+        const snap = await window.db.collection("users").doc(uid).get();
+        if (!snap.exists) {
+            console.error('❌ Firestore Document TIDAK DIJUMPAI! Cari Document ID:', uid);
+            await window.auth.signOut();
+            throw new Error("❌ Data pengguna tidak dijumpai di Firestore (Cari Document ID: " + uid + ")");
+        }
+
+        const userData = snap.data();
+
+        // SEMAK STATUS AKAUN
+        if (userData.status === 'Disekat') {
+            await window.auth.signOut();
+            throw new Error("❌ Akaun anda telah disekat. Sila hubungi pentadbir utama.");
+        }
+
+        // 3. Simpan Sesi (Ikut format anda)
+        sessionStorage.setItem("loggedIn", "true");
+        sessionStorage.setItem("currentUser", JSON.stringify({
+            uid,
+            email: username,
+            role: userData.role,
+            name: userData.name
+        }));
+
+        // Simpan untuk kestabilan aplikasi sedia ada
+        localStorage.setItem('isLoggedIn', 'true');
+        localStorage.setItem('loginType', 'firebase');
+        localStorage.setItem('userName', userData.name || username.split('@')[0]);
+        localStorage.setItem('userEmail', username);
+        localStorage.setItem('userRole', userData.role || '');
+
+        alert(`✅ Selamat datang, ${userData.name}`);
+
+        // 4. Transformasi UI (SPA style)
         const pageLogin = document.getElementById('login-page');
         const pageApp = document.getElementById('app');
 
-        if (pageLogin) {
-            pageLogin.classList.add('hidden');
-            pageLogin.style.display = 'none';
-        }
+        if (pageLogin) pageLogin.classList.add('hidden');
         if (pageApp) {
             pageApp.classList.remove('hidden');
             pageApp.style.display = 'flex';
         }
 
-        DataStore.notify(); // Ensure data is rendered
+        if (typeof DataStore !== 'undefined') DataStore.notify();
 
-        // Go to dashboard or saved page
         const lastPage = localStorage.getItem('lastPage') || 'dashboard';
         showPage(lastPage);
-    } else {
-        console.log('❌ Login Failed');
-        showLoginError('Username atau password salah');
+        sessionStorage.removeItem('manualLoginInProgress');
+
+    } catch (err) {
+        sessionStorage.removeItem('manualLoginInProgress');
+        console.error("❌ Login error:", err.code, err.message);
+
+        let errorMsg = "Masalah log masuk. Sila semak kredensial anda.";
+
+        // Handle common Firebase Auth errors
+        if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+            errorMsg = "Email tidak dijumpai atau kata laluan salah.";
+        } else if (err.code === 'auth/wrong-password') {
+            // Track attempts
+            let attempts = parseInt(localStorage.getItem('loginAttempts_' + username) || '0') + 1;
+            localStorage.setItem('loginAttempts_' + username, attempts);
+
+            if (attempts >= 3) {
+                errorMsg = "Anda telah mencuba 3 kali. Sila reset password anda.";
+            } else {
+                errorMsg = "Kata laluan salah. Sila masukkan kata laluan yang betul.";
+            }
+        } else if (err.code === 'auth/invalid-email') {
+            errorMsg = "Format email tidak sah.";
+        } else if (err.code === 'auth/too-many-requests') {
+            errorMsg = "Terlalu banyak percubaan. Sila reset kata laluan atau cuba lagi kemudian.";
+        } else if (err.message && err.message.includes("Firestore")) {
+            // This catches the "Data pengguna tidak dijumpai di Firestore" error
+            errorMsg = "Akses ditolak. Akaun anda wujud tetapi data profil tidak dijumpai dalam rekod sistem.";
+        } else if (err.code === 'permission-denied' || (err.message && err.message.includes("permissions"))) {
+            errorMsg = "Akses Firestore ditolak. Sila tetapkan 'Firestore Rules' di Firebase Console kepada 'Allow read/write if auth != null'.";
+        } else {
+            errorMsg = "Ralat: " + (err.message || "Sila cuba lagi.");
+        }
+
+        showLoginError(errorMsg);
+    } finally {
         restoreSubmit();
+    }
+};
+
+/**
+ * RESET PASSWORD HELPERS
+ */
+window.showResetModal = function () {
+    const modal = document.getElementById('modal-reset-password');
+    if (modal) modal.classList.remove('hidden');
+};
+
+window.closeResetModal = function () {
+    const modal = document.getElementById('modal-reset-password');
+    if (modal) modal.classList.add('hidden');
+};
+
+window.handleResetPassword = async function () {
+    const email = document.getElementById('reset-email').value.trim();
+    const btn = document.getElementById('btn-submit-reset');
+
+    if (!email) {
+        alert("Sila masukkan email anda.");
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = "Sedang hantar...";
+
+    try {
+        await window.auth.sendPasswordResetEmail(email);
+        alert("✅ Pautan reset kata laluan telah dihantar ke email anda. Sila semak inbox atau spam.");
+        closeResetModal();
+    } catch (error) {
+        console.error("Reset Password Error:", error);
+        if (error.code === 'auth/user-not-found') {
+            alert("❌ Email ini tidak berdaftar dalam sistem.");
+        } else {
+            alert("❌ Gagal menghantar email reset: " + error.message);
+        }
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "Hantar Pautan Reset";
     }
 };
 
@@ -1348,11 +1478,8 @@ function performLogoutRedirect() {
     }, 500);
 }
 
-// Login credentials
-const ADMIN_USERNAME = 'admin';
-const ADMIN_PASSWORD = 'admin123';
-
-// end off login data
+// Login credentials removed for security
+// End of login data
 
 // Helper functions - Show all permohonan data
 function getPermohonan() {
@@ -1382,7 +1509,7 @@ function showPage(page) {
     if (page === 'permohonan') {
         renderPermohonan();
     } else if (page === 'admin') {
-        renderAdmin();
+        loadAdminData();
     }
 
     // Save state if logged in
@@ -1742,83 +1869,7 @@ function formatDate(dateStr) {
     return date.toLocaleString('ms-MY', { dateStyle: 'short', timeStyle: 'short' });
 }
 
-// Render Admin
-function renderAdmin() {
-    const container = document.getElementById('admin-table-body');
-    if (!container) return;
-
-    const admins = allData.filter(d => d.type === 'admin');
-
-    if (admins.length === 0) {
-        container.innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-slate-400">Tiada admin berdaftar</td></tr>`;
-        return;
-    }
-
-    container.innerHTML = admins.map(admin => `
-        <tr class="hover:bg-slate-50 transition-colors">
-            <td class="px-6 py-4">
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold text-sm">
-                        ${admin.nama ? admin.nama.charAt(0).toUpperCase() : 'A'}
-                    </div>
-                    <span class="font-medium text-slate-800 text-sm">${admin.nama || '-'}</span>
-                </div>
-            </td>
-            <td class="px-6 py-4 text-slate-600 text-sm">${admin.email || '-'}</td>
-            <td class="px-6 py-4 text-slate-600 text-sm">
-                <span class="px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${admin.role === 'Super Admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}">
-                    ${admin.role || 'Staff'}
-                </span>
-            </td>
-            <td class="px-6 py-4 text-center">
-                <button onclick="openDeleteModal('${admin.__backendId}', 'admin')" class="text-red-400 hover:text-red-600 transition-colors p-2 rounded-lg hover:bg-red-50" title="Padam Admin">
-                    <svg class="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                    </svg>
-                </button>
-            </td>
-        </tr>
-    `).join('');
-}
-
-// Add Admin Handler
-function setupAdminHandler() {
-    const form = document.getElementById('form-add-admin');
-    if (!form) return;
-
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const nama = document.getElementById('admin-nama').value;
-        const email = document.getElementById('admin-email').value;
-        const role = document.getElementById('admin-role').value;
-
-        const newAdmin = {
-            type: 'admin',
-            nama,
-            email,
-            role,
-            addedAt: new Date().toISOString()
-        };
-
-        const submitBtn = form.querySelector('button[type="submit"]');
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Menyimpan...';
-
-        try {
-            await DataStore.add(newAdmin);
-            showToast('✅ Admin baru berjaya ditambah!');
-            form.reset();
-            document.getElementById('admin-form-container').classList.add('hidden');
-        } catch (err) {
-            console.error('Failed to add admin:', err);
-            showToast('❌ Gagal menambah admin', 'error');
-        } finally {
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Simpan Admin';
-        }
-    });
-}
-document.addEventListener('DOMContentLoaded', setupAdminHandler);
+// --- Admin management moved to Firebase section ---
 
 // Render kategori
 function renderKategori() {
@@ -1843,7 +1894,7 @@ function renderKategori() {
             <thead class="bg-slate-50">
                 <tr>
                     <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-widest">Nama Kategori</th>
-                    <th class="px-4 py-3 text-right text-xs font-black text-slate-500 uppercase tracking-widest">Tindakan</th>
+                    <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-widest">Tindakan</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
@@ -1854,7 +1905,7 @@ function renderKategori() {
                 <td class="px-4 py-3">
                     <p class="font-medium text-slate-800">${k.namaKategori || k.nama || '-'}</p>
                 </td>
-                <td class="px-4 py-3 text-right">
+                <td class="px-4 py-3 text-left">
                     <div class="flex justify-end gap-1">
                         <button onclick="openEditKategori('${k.__backendId}')" class="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Edit">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1943,7 +1994,7 @@ function openEditPeralatan(id) {
     }
 
     document.getElementById('peralatan-id').value = targetId;
-    document.getElementById('kategori-peralatan').value = data.kategori || '';
+    document.getElementById('kategori-peralatan').value = String(data.kategori || '');
     document.getElementById('nama-peralatan').value = data.namaPeralatan || '';
     document.getElementById('kuantiti-peralatan').value = data.kuantiti || 0;
 
@@ -1985,17 +2036,26 @@ function renderPeralatan() {
                 <tr>
                     <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-widest">Peralatan</th>
                     <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-widest">Kategori</th>
-                    <th class="px-4 py-3 text-center text-xs font-black text-slate-500 uppercase tracking-widest">Baki/Jumlah</th>
-                    <th class="px-4 py-3 text-right text-xs font-black text-slate-500 uppercase tracking-widest">Tindakan</th>
+                    <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-widest">Baki/Jumlah</th>
+                    <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-widest">Tindakan</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
     `;
 
     html += peralatan.map(p => {
-        const kat = kategori.find(k => k.__backendId === p.kategori);
+        const kat = kategori.find(k => String(k.__backendId) === String(p.kategori));
         const bakiSekarang = getAvailableStock(p.__backendId);
         const statusColor = bakiSekarang > 0 ? 'text-green-600' : 'text-red-600';
+        // Calculate totals from logs (for potential future use)
+        const logs = allData.filter(d => d.type === 'log_stok' && String(d.peralatanId) === String(p.__backendId));
+        const calcBaru = logs
+            .filter(l => ['Tambah Stok', 'Item Baru'].includes(l.jenisPerubahan))
+            .reduce((sum, l) => sum + (parseInt(l.kuantiti) || 0), 0);
+        const calcRosak = logs
+            .filter(l => l.jenisPerubahan === 'Lapor Rosak')
+            .reduce((sum, l) => sum + (parseInt(l.kuantiti) || 0), 0);
+
         return `
             <tr class="hover:bg-slate-50 transition-colors">
                 <td class="px-4 py-3">
@@ -2004,10 +2064,10 @@ function renderPeralatan() {
                 <td class="px-4 py-3">
                     <p class="text-sm text-slate-500">${kat ? kat.namaKategori || kat.nama : 'Tiada Kategori'}</p>
                 </td>
-                <td class="px-4 py-3 text-center">
+                <td class="px-4 py-3 text-left">
                     <p class="text-xs ${statusColor} font-bold">${bakiSekarang} / ${p.kuantiti || 0}</p>
                 </td>
-                <td class="px-4 py-3 text-right">
+                <td class="px-4 py-3 text-left">
                     <div class="flex justify-end gap-1">
                         <button onclick="openEditPeralatan('${p.__backendId}')" class="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Edit">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2929,6 +2989,21 @@ function openTindakan(id) {
     document.getElementById('status-permohonan').value = permohonan.status || 'Dalam Proses';
     document.getElementById('catatan-admin').value = permohonan.catatan || '';
 
+    // Populate editable date fields (convert ISO to datetime-local format)
+    const formatForInput = (isoDate) => {
+        if (!isoDate) return '';
+        const d = new Date(isoDate);
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const hours = String(d.getHours()).padStart(2, '0');
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+    };
+
+    document.getElementById('edit-tarikh-mula').value = formatForInput(permohonan.tarikhMulaPinjam);
+    document.getElementById('edit-tarikh-tamat').value = formatForInput(permohonan.tarikhPulang);
+
     // Set tarikh selesai if already recorded
     document.getElementById('tarikh-selesai').value = permohonan.tarikhSelesai ? formatDate(permohonan.tarikhSelesai) : '';
 
@@ -2940,11 +3015,23 @@ function openTindakan(id) {
         btnSelesai.classList.remove('hidden');
     }
 
-    // Populate items edit section if permohonan is for Peralatan
-    if (permohonan.jenisPermohonan === 'Peralatan') {
+    // Populate items edit section if permohonan includes Peralatan
+    const jenisNormalized = (permohonan.jenisPermohonan || '').trim().toLowerCase();
+    console.log('🔍 openTindakan - Jenis Permohonan:', permohonan.jenisPermohonan, '| Normalized:', jenisNormalized);
+
+    // Reset checkboxes and hide edit sections by default
+    document.getElementById('toggle-edit-dates').checked = false;
+    document.getElementById('date-edit-section').classList.add('hidden');
+
+    // Check if jenisPermohonan contains 'peralatan' (handles both "Peralatan" and "Dewan, Peralatan")
+    if (jenisNormalized.includes('peralatan')) {
+        console.log('✅ Showing items edit section (contains Peralatan)');
         document.getElementById('items-edit-section').classList.remove('hidden');
+        document.getElementById('toggle-edit-items').checked = false;
+        document.getElementById('items-edit-container-wrapper').classList.add('hidden');
         populateItemsEditContainer(permohonan);
     } else {
+        console.log('❌ Hiding items edit section (does not contain Peralatan)');
         document.getElementById('items-edit-section').classList.add('hidden');
     }
 
@@ -3083,11 +3170,17 @@ document.getElementById('form-tindakan').addEventListener('submit', async (e) =>
     const status = document.getElementById('status-permohonan').value;
     const catatan = document.getElementById('catatan-admin').value;
 
+    // Get updated dates from input fields
+    const newTarikhMula = document.getElementById('edit-tarikh-mula').value;
+    const newTarikhTamat = document.getElementById('edit-tarikh-tamat').value;
+
     const data = allData.find(d => String(d.__backendId) === String(id));
     if (data) {
         const updates = {
             status: status,
-            catatan: catatan
+            catatan: catatan,
+            tarikhMulaPinjam: newTarikhMula ? new Date(newTarikhMula).toISOString() : data.tarikhMulaPinjam,
+            tarikhPulang: newTarikhTamat ? new Date(newTarikhTamat).toISOString() : data.tarikhPulang
         };
 
         // Update items Data ALWAYS (even if empty) to allow reduction to 0 items
@@ -3331,12 +3424,12 @@ function renderLaporanPeralatanTable(usageData) {
         thead.innerHTML = `
             <tr class="bg-slate-50">
                 <th class="px-4 py-4 text-left text-[9px] font-black text-slate-500 uppercase tracking-widest">Peralatan</th>
-                <th class="px-4 py-4 text-center text-[9px] font-black text-slate-500 uppercase tracking-widest">Baru (+)</th>
-                <th class="px-4 py-4 text-center text-[9px] font-black text-slate-500 uppercase tracking-widest">Rosak (-)</th>
-                <th class="px-4 py-4 text-center text-[9px] font-black text-slate-500 uppercase tracking-widest">Jumlah</th>
-                <th class="px-4 py-4 text-center text-[9px] font-black text-slate-500 uppercase tracking-widest">Diguna</th>
-                <th class="px-4 py-4 text-center text-[9px] font-black text-slate-500 uppercase tracking-widest">Baki</th>
-                <th class="px-4 py-4 text-right text-[9px] font-black text-slate-500 uppercase tracking-widest">Status</th>
+                <th class="px-4 py-4 text-left text-[9px] font-black text-slate-500 uppercase tracking-widest">Baru (+)</th>
+                <th class="px-4 py-4 text-left text-[9px] font-black text-slate-500 uppercase tracking-widest">Rosak (-)</th>
+                <th class="px-4 py-4 text-left text-[9px] font-black text-slate-500 uppercase tracking-widest">Jumlah</th>
+                <th class="px-4 py-4 text-left text-[9px] font-black text-slate-500 uppercase tracking-widest">Diguna</th>
+                <th class="px-4 py-4 text-left text-[9px] font-black text-slate-500 uppercase tracking-widest">Baki</th>
+                <th class="px-4 py-4 text-left text-[9px] font-black text-slate-500 uppercase tracking-widest">Status</th>
             </tr>
         `;
     }
@@ -3348,8 +3441,23 @@ function renderLaporanPeralatanTable(usageData) {
         const baki = Math.max(0, total - usageCount);
         const hasStock = baki > 0;
 
-        const dateBaru = p.lastUpdateBaru ? `<br><span class="text-[8px] opacity-60">${formatRelativeDate(p.lastUpdateBaru)}</span>` : '';
-        const dateRosak = p.lastUpdateRosak ? `<br><span class="text-[8px] opacity-60">${formatRelativeDate(p.lastUpdateRosak)}</span>` : '';
+        // Calculate totals from logs (same logic as in renderPeralatan)
+        const logs = allData.filter(d => d.type === 'log_stok' && String(d.peralatanId) === String(p.__backendId));
+        const calcBaru = logs
+            .filter(l => ['Tambah Stok', 'Item Baru'].includes(l.jenisPerubahan))
+            .reduce((sum, l) => sum + (parseInt(l.kuantiti) || 0), 0);
+        const calcRosak = logs
+            .filter(l => l.jenisPerubahan === 'Lapor Rosak')
+            .reduce((sum, l) => sum + (parseInt(l.kuantiti) || 0), 0);
+
+        // Get latest timestamps from logs
+        const logsBaru = logs.filter(l => ['Tambah Stok', 'Item Baru'].includes(l.jenisPerubahan));
+        const logsRosak = logs.filter(l => l.jenisPerubahan === 'Lapor Rosak');
+        const latestBaru = logsBaru.length > 0 ? logsBaru.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0].timestamp : null;
+        const latestRosak = logsRosak.length > 0 ? logsRosak.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0].timestamp : null;
+
+        const dateBaru = latestBaru ? `<br><span class="text-[8px] opacity-60">${formatRelativeDate(latestBaru)}</span>` : '';
+        const dateRosak = latestRosak ? `<br><span class="text-[8px] opacity-60">${formatRelativeDate(latestRosak)}</span>` : '';
         const dateJumlah = p.lastUpdateJumlah ? `<br><span class="text-[8px] opacity-60">${formatRelativeDate(p.lastUpdateJumlah)}</span>` : '';
         const dateLatestUse = usageDataForItem.latest ? `<br><span class="text-[8px] opacity-60">${formatRelativeDate(usageDataForItem.latest)}</span>` : '';
 
@@ -3358,22 +3466,22 @@ function renderLaporanPeralatanTable(usageData) {
                 <td class="px-4 py-4">
                     <p class="font-bold text-slate-800 text-xs">${p.namaPeralatan}</p>
                 </td>
-                <td class="px-4 py-4 text-center">
-                    <span class="text-green-600 font-bold">${p.totalBaru || 0}</span>${dateBaru}
+                <td class="px-4 py-4 text-left">
+                    <span class="text-green-600 font-bold">${calcBaru}</span>${dateBaru}
                 </td>
-                <td class="px-4 py-4 text-center">
-                    <span class="text-red-500 font-bold">${p.totalRosak || 0}</span>${dateRosak}
+                <td class="px-4 py-4 text-left">
+                    <span class="text-red-500 font-bold">${calcRosak}</span>${dateRosak}
                 </td>
-                <td class="px-4 py-4 text-center">
+                <td class="px-4 py-4 text-left">
                     <span class="text-slate-800 font-black">${total}</span>${dateJumlah}
                 </td>
-                <td class="px-4 py-4 text-center">
+                <td class="px-4 py-4 text-left">
                     <span class="text-indigo-600 font-bold">${usageCount}</span>${dateLatestUse}
                 </td>
-                <td class="px-4 py-4 text-center">
+                <td class="px-4 py-4 text-left">
                     <span class="font-bold border-b-2 ${hasStock ? 'border-green-400 text-green-700' : 'border-red-400 text-red-700'}">${baki}</span>
                 </td>
-                <td class="px-4 py-4 text-right">
+                <td class="px-4 py-4 text-left">
                     <span class="status-badge ${hasStock ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}">
                         ${hasStock ? 'Sedia Digunakan' : 'Habis'}
                     </span>
@@ -3404,7 +3512,7 @@ function renderLogStok() {
     const logs = allData.filter(d => d.type === 'log_stok').sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
     if (logs.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-4 text-center text-slate-400">Tiada rekod transaksi buat masa ini.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-4 text-left text-slate-400">Tiada rekod transaksi buat masa ini.</td></tr>`;
         return;
     }
 
@@ -3426,12 +3534,12 @@ function renderLogStok() {
             <tr class="hover:bg-slate-50 transition-colors border-b border-slate-100">
                 <td class="px-4 py-3 text-xs text-slate-600 font-medium whitespace-nowrap">${date}</td>
                 <td class="px-4 py-3 text-xs text-slate-800 font-bold">${log.namaPeralatan || '-'}</td>
-                <td class="px-4 py-3 text-center">
+                <td class="px-4 py-3 text-left">
                     <span class="px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${typeClass}">
                         ${log.jenisPerubahan || 'Kemaskini'}
                     </span>
                 </td>
-                <td class="px-4 py-3 text-center text-xs font-bold font-mono">
+                <td class="px-4 py-3 text-left text-xs font-bold font-mono">
                     ${typeIcon}${log.kuantiti || 0}
                 </td>
                 <td class="px-4 py-3 text-xs text-slate-500 italic">
@@ -3534,7 +3642,7 @@ function renderLaporanDewanTable(permohonanData) {
     </tr>
     `;
     if (ongoingEvents.length === 0) {
-        html += `<tr><td colspan="4" class="px-6 py-4 text-center text-xs text-slate-400 italic">Tiada acara sedang berlangsung</td></tr>`;
+        html += `<tr><td colspan="4" class="px-6 py-4 text-left text-xs text-slate-400 italic">Tiada acara sedang berlangsung</td></tr>`;
     } else {
         ongoingEvents.forEach(p => {
             html += `
@@ -3549,8 +3657,8 @@ function renderLaporanDewanTable(permohonanData) {
                             <p class="font-bold">${new Date(p.tarikhMulaPinjam).toLocaleDateString('ms-MY', { day: '2-digit', month: 'short', year: 'numeric' })} - ${new Date(p.tarikhPulang).toLocaleDateString('ms-MY', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
                         </div>
                     </td>
-                    <td class="px-6 py-4 text-center"><span class="px-2 py-1 bg-orange-200 text-orange-800 text-[9px] font-bold rounded-full uppercase tracking-widest shadow-sm animate-pulse">Sedang Berlangsung</span></td>
-                    <td class="px-6 py-4 text-right text-[10px] font-black text-orange-600 uppercase tracking-tighter">Aktif</td>
+                    <td class="px-6 py-4 text-left"><span class="px-2 py-1 bg-orange-200 text-orange-800 text-[9px] font-bold rounded-full uppercase tracking-widest shadow-sm animate-pulse">Sedang Berlangsung</span></td>
+                    <td class="px-6 py-4 text-left text-[10px] font-black text-orange-600 uppercase tracking-tighter">Aktif</td>
                 </tr>
             `;
         });
@@ -3565,7 +3673,7 @@ function renderLaporanDewanTable(permohonanData) {
     </tr>
     `;
     if (upcomingEvents.length === 0) {
-        html += `<tr><td colspan="4" class="px-6 py-4 text-center text-xs text-slate-400 italic">Tiada acara akan datang</td></tr>`;
+        html += `<tr><td colspan="4" class="px-6 py-4 text-left text-xs text-slate-400 italic">Tiada acara akan datang</td></tr>`;
     } else {
         upcomingEvents.slice(0, 3).forEach(p => {
             html += `
@@ -3580,8 +3688,8 @@ function renderLaporanDewanTable(permohonanData) {
                             <p class="font-bold">${new Date(p.tarikhMulaPinjam).toLocaleDateString('ms-MY', { day: '2-digit', month: 'short', year: 'numeric' })} - ${new Date(p.tarikhPulang).toLocaleDateString('ms-MY', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
                         </div>
                     </td>
-                    <td class="px-6 py-4 text-center"><span class="px-2 py-1 bg-indigo-100 text-indigo-700 text-[9px] font-bold rounded-full uppercase tracking-widest shadow-sm">Booking</span></td>
-                    <td class="px-6 py-4 text-right text-[10px] font-black text-indigo-600 uppercase tracking-tighter">Sedia </td>
+                    <td class="px-6 py-4 text-left"><span class="px-2 py-1 bg-indigo-100 text-indigo-700 text-[9px] font-bold rounded-full uppercase tracking-widest shadow-sm">Booking</span></td>
+                    <td class="px-6 py-4 text-left text-[10px] font-black text-indigo-600 uppercase tracking-tighter">Sedia </td>
                 </tr>
             `;
         });
@@ -3596,7 +3704,7 @@ function renderLaporanDewanTable(permohonanData) {
     </tr>
     `;
     if (pastEvents.length === 0) {
-        html += `<tr><td colspan="4" class="px-6 py-4 text-center text-xs text-slate-400 italic">Tiada acara terdahulu</td></tr>`;
+        html += `<tr><td colspan="4" class="px-6 py-4 text-left text-xs text-slate-400 italic">Tiada acara terdahulu</td></tr>`;
     } else {
         pastEvents.slice(-3).reverse().forEach(p => {
             html += `
@@ -3611,8 +3719,8 @@ function renderLaporanDewanTable(permohonanData) {
                             <p>${new Date(p.tarikhMulaPinjam).toLocaleDateString('ms-MY', { day: '2-digit', month: 'short', year: 'numeric' })} - ${new Date(p.tarikhPulang).toLocaleDateString('ms-MY', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
                         </div>
                     </td>
-                    <td class="px-6 py-4 text-center"><span class="px-2 py-1 bg-slate-100 text-slate-600 text-[9px] font-bold rounded-full uppercase">Selesai</span></td>
-                    <td class="px-6 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-tighter">Arsip</td>
+                    <td class="px-6 py-4 text-left"><span class="px-2 py-1 bg-slate-100 text-slate-600 text-[9px] font-bold rounded-full uppercase">Selesai</span></td>
+                    <td class="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-tighter">Arsip</td>
                 </tr>
             `;
         });
@@ -4256,23 +4364,6 @@ function updateUserUI(name, email, photoURL = null) {
     if (sidebarEmail) sidebarEmail.textContent = email || 'Pentadbir Sistem';
     if (sidebarAvatar) sidebarAvatar.textContent = name.charAt(0).toUpperCase();
 
-    // Reset Login Button if applicable
-    const googleBtn = document.getElementById('btn-google-signin');
-    if (googleBtn) {
-        googleBtn.disabled = false;
-        const originalHTML = `
-            <svg class="w-5 h-5" viewBox="0 0 24 24">
-                <path fill="#EA4335" d="M5.266 9.765A7.077 7.077 0 0 1 12 4.9a7.1 7.1 0 0 1 4.82 1.783l3.58-3.58A11.908 11.908 0 0 0 12 0C7.27 0 3.198 2.698.96 6.65l4.305 3.115z" />
-                <path fill="#34A853" d="M12 24c2.97 0 5.46-.998 7.28-2.738l-3.528-2.74a4.9 4.9 0 0 1-3.752 1.478c-2.882 0-5.336-1.988-6.214-4.983H2.909v3.195C3.962 22.56 7.67 24 12 24z" />
-                <path fill="#4A90E2" d="M5.786 14.876c-.293-.935-.458-1.922-.458-2.876s.165-1.941.458-2.876L2.481 5.961A11.884 11.884 0 0 0 0 12c0 1.946.474 3.787 1.313 5.404l4.473-3.528z" />
-                <path fill="#FBBC05" d="M12 5.217a4.9 4.9 0 0 1 3.465 1.345l2.612-2.612A7.091 7.091 0 0 0 12 4.9c-4.33 0-8.038 2.44-9.091 6.05l4.305 3.115c.878-2.995 3.332-4.848 6.214-4.848z" />
-            </svg>
-            <span>Log Masuk dengan Google</span>
-        `;
-        if (googleBtn.innerHTML.includes('animate-spin')) {
-            googleBtn.innerHTML = originalHTML;
-        }
-    }
 }
 
 // ===== SESSION CHECK (OLD REDIRECTS REMOVED) =====
@@ -4404,78 +4495,245 @@ if (logoutBtn) {
         });
 
         // Confirm → logout
-        confirmDiv.addEventListener('click', (e) => {
+        confirmDiv.addEventListener('click', async (e) => {
             if (e.target && e.target.id === 'confirmLogoutBtn') {
-                sessionStorage.removeItem("loggedIn");
-                window.location.href = "index.html";
+                // Dim the popup to show processing
+                confirmDiv.style.opacity = "0.7";
+                confirmDiv.style.pointerEvents = "none";
 
+                // Show Loading Overlay on top of everything
+                let logoutLoading = document.createElement('div');
+                logoutLoading.id = "globalLogoutLoading";
+                logoutLoading.style.cssText = `
+                    position:fixed;top:0;left:0;width:100%;height:100%;
+                    background:rgba(0,0,0,0.8);
+                    z-index:10000;
+                    display:flex;flex-direction:column;align-items:center;justify-content:center;
+                    color:white;font-family:sans-serif;
+                `;
+                logoutLoading.innerHTML = `
+                    <div class="w-16 h-16 border-4 border-white/20 border-t-white rounded-full animate-spin mb-4"></div>
+                    <h2 class="text-xl font-bold tracking-widest">SEDANG LOGOUT...</h2>
+                    <p class="text-sm text-gray-400 mt-2">Menyimpan data dan menamatkan sesi</p>
+                `;
+                document.body.appendChild(logoutLoading);
 
+                try {
+                    // 1. Firebase Signout (Wait for it)
+                    if (typeof auth !== 'undefined' && auth) {
+                        await auth.signOut();
+                        console.log('✅ Firebase Signed Out');
+                    }
+
+                    // 2. Clear Local & Session State completely
+                    localStorage.setItem("isLoggedIn", "false");
+                    localStorage.removeItem("userEmail");
+                    localStorage.removeItem("userName");
+                    localStorage.removeItem("userRole");
+                    localStorage.removeItem("loginType");
+                    localStorage.removeItem("dashboardState");
+
+                    sessionStorage.clear();
+
+                    // 3. Small delay for Firebase persistence to settle
+                    setTimeout(() => {
+                        window.location.href = "index.html";
+                    }, 1000);
+
+                } catch (err) {
+                    console.error('Logout Error:', err);
+                    window.location.href = "index.html";
+                }
             }
         });
     });
 }
 
-let users = JSON.parse(localStorage.getItem("users")) || [];
+// --- FIREBASE ADMIN MANAGEMENT ---
 
-function renderUsers() {
-    const table = document.getElementById("userTable");
-    if (!table) return;
+window.loadAdminData = async function () {
+    const tableBody = document.getElementById('admin-table-body');
+    if (!tableBody) return;
 
-    table.innerHTML = "";
+    try {
+        console.log('⏳ Memuatkan senarai pentadbir dari Firestore...');
+        const snapshot = await window.db.collection("users").get();
+        const adminList = [];
+        snapshot.forEach(doc => {
+            adminList.push({ uid: doc.id, ...doc.data() });
+        });
+        renderAdminTable(adminList);
+    } catch (error) {
+        console.error("❌ Gagal memuatkan data admin:", error);
+    }
+};
 
-    users.forEach((u, index) => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-            <td>${u.name || "-"}</td>
-            <td>${u.id}</td>
-            <td>${u.role}</td>
-            <td>
-                <button class="admin-delete" data-index="${index}">Padam</button>
-            </td>
+function renderAdminTable(admins) {
+    const tableBody = document.getElementById('admin-table-body');
+    if (!tableBody) return;
+
+    // Ambil UID pengguna sekarang
+    const currentUserUID = window.auth && window.auth.currentUser ? window.auth.currentUser.uid : null;
+
+    tableBody.innerHTML = admins.map(admin => {
+        const status = admin.status || 'Aktif';
+        const isBlocked = status === 'Disekat';
+        const statusClass = isBlocked ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600';
+        const isSelf = currentUserUID && admin.uid === currentUserUID;
+
+        return `
+            <tr class="hover:bg-slate-50 transition-colors ${isSelf ? 'bg-indigo-50/30' : ''}">
+                <td class="px-6 py-4">
+                    <div class="flex items-center gap-2">
+                        <div class="font-bold text-slate-800">${admin.name || '-'}</div>
+                        ${isSelf ? '<span class="text-[10px] bg-slate-800 text-white px-2 py-0.5 rounded-full font-bold">ANDA</span>' : ''}
+                    </div>
+                </td>
+                <td class="px-6 py-4 text-slate-600 font-medium">${admin.email || admin.id}</td>
+                <td class="px-6 py-4 text-left">
+                    <span class="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-xs font-bold">${admin.role || 'Staff'}</span>
+                </td>
+                <td class="px-6 py-4 text-left">
+                    <span class="px-3 py-1 ${statusClass} rounded-full text-xs font-bold">${status}</span>
+                </td>
+                <td class="px-6 py-4">
+                    <div class="flex items-center justify-center gap-2">
+                        ${isSelf ? `
+                            <span class="text-xs text-slate-400 italic">Tiada tindakan</span>
+                        ` : `
+                            <button onclick="toggleAdminStatus('${admin.uid}', '${status}')" 
+                                class="p-2 ${isBlocked ? 'text-green-600 hover:bg-green-50' : 'text-orange-600 hover:bg-orange-50'} rounded-lg transition-all" 
+                                title="${isBlocked ? 'Aktifkan' : 'Sekat Akses'}">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${isBlocked ? 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' : 'M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636'}" />
+                                </svg>
+                            </button>
+                            <button onclick="deleteAdmin('${admin.uid}')" class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Padam">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        `}
+                    </div>
+                </td>
+            </tr>
         `;
-        table.appendChild(tr);
-    });
+    }).join('');
 }
 
-renderUsers();
-
-const addUserForm = document.getElementById("addUserForm");
-
-if (addUserForm) {
-    addUserForm.addEventListener("submit", e => {
+// Event Listener untuk Borang Tambah Admin
+const addAdminForm = document.getElementById("form-add-admin");
+if (addAdminForm) {
+    addAdminForm.addEventListener("submit", async (e) => {
         e.preventDefault();
+        const name = document.getElementById("admin-nama").value;
+        const email = document.getElementById("admin-email").value.trim();
+        const role = document.getElementById("admin-role").value;
+        const password = document.getElementById("admin-password").value;
 
-        const name = document.getElementById("name").value;
-        const email = document.getElementById("email").value;
-        const role = document.getElementById("role").value;
-        const password = document.getElementById("password").value;
+        // Reset errors
+        const emailErr = document.getElementById("admin-email-error");
+        const passErr = document.getElementById("admin-password-error");
+        if (emailErr) emailErr.classList.add('hidden');
+        if (passErr) passErr.classList.add('hidden');
 
-        if (users.some(u => u.id === email)) {
-            alert("User sudah wujud");
-            return;
+        let hasError = false;
+        if (!email.includes('@')) {
+            if (emailErr) {
+                emailErr.textContent = "Sila masukkan email yang lengkap.";
+                emailErr.classList.remove('hidden');
+            }
+            hasError = true;
         }
 
-        users.push({
-            name,
-            id: email,
-            password,
-            role
-        });
+        // Alphanumeric Validation (Must have letters and numbers)
+        const hasLetter = /[a-zA-Z]/.test(password);
+        const hasNumber = /[0-9]/.test(password);
+        if (password.length < 6 || !hasLetter || !hasNumber) {
+            if (passErr) {
+                passErr.textContent = "Password mesti sekurang-kurangnya 6 aksara dan mengandungi kombinasi HURUF & NOMBOR (Alphanumeric).";
+                passErr.classList.remove('hidden');
+            }
+            hasError = true;
+        }
 
-        localStorage.setItem("users", JSON.stringify(users));
-        e.target.reset();
-        renderUsers();
+        if (hasError) return;
+
+        try {
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = 'Mendaftarkan...';
+
+            // 1. Create User in Firebase Authentication
+            // Note: We use a secondary app instance to avoid logging out the current admin
+            let secondaryApp = firebase.initializeApp(firebaseConfig, "SecondaryApp_" + Date.now());
+            let secondaryAuth = secondaryApp.auth();
+
+            const userCredential = await secondaryAuth.createUserWithEmailAndPassword(email, password);
+            const newUser = userCredential.user;
+            const uid = newUser.uid; // Get UID from Auth
+
+            // 2. Save User Profile to Firestore using the UID
+            await window.db.collection("users").doc(uid).set({
+                name,
+                email,
+                role,
+                status: 'Aktif',
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            // Cleanup secondary app
+            await secondaryApp.delete();
+
+            alert("✅ Pentadbir berjaya dicipta dalam Authentication & Firestore.");
+            e.target.reset();
+            document.getElementById('admin-form-container').classList.add('hidden');
+            loadAdminData();
+        } catch (error) {
+            alert("❌ Gagal mendaftar: " + error.message);
+        } finally {
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'Daftar Admin';
+        }
     });
 }
 
-document.addEventListener("click", e => {
-    if (e.target.classList.contains("admin-delete")) {
-        const index = e.target.dataset.index;
-        if (!confirm("Padam user ini?")) return;
+window.toggleAdminStatus = async function (uid, currentStatus) {
+    if (window.auth && window.auth.currentUser && uid === window.auth.currentUser.uid) {
+        alert("⚠️ Anda tidak boleh menyekat akaun anda sendiri!");
+        return;
+    }
+    const newStatus = currentStatus === 'Aktif' ? 'Disekat' : 'Aktif';
+    if (!confirm(`Tukar status akaun ini kepada ${newStatus}?`)) return;
 
-        users.splice(index, 1);
-        localStorage.setItem("users", JSON.stringify(users));
-        renderUsers();
+    try {
+        await window.db.collection("users").doc(uid).update({ status: newStatus });
+        loadAdminData();
+    } catch (error) {
+        alert("Ralat kemaskini: " + error.message);
+    }
+};
+
+window.deleteAdmin = async function (uid) {
+    if (window.auth && window.auth.currentUser && uid === window.auth.currentUser.uid) {
+        alert("⚠️ Anda tidak boleh memadam akaun anda sendiri semasa sedang log masuk!");
+        return;
+    }
+    if (!confirm("Padam akaun pentadbir ini secara kekal dari Firestore?")) return;
+
+    try {
+        await window.db.collection("users").doc(uid).delete();
+        loadAdminData();
+    } catch (error) {
+        alert("Ralat memadam: " + error.message);
+    }
+};
+
+// Panggil muatan data apabila tab admin dibuka
+document.addEventListener('click', (e) => {
+    if (e.target.closest('[onclick*="showPage(\'admin\')"]')) {
+        loadAdminData();
     }
 });
 
@@ -5542,7 +5800,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 // User said "tolak dari jumlah yang ada".
                 currentTotal = Math.max(0, currentTotal - addedRosak);
                 totalRosak += addedRosak;
-                totalRosak += addedRosak; // Wait, duplicate line here? removing it.
                 lastUpdateRosak = now;
                 lastUpdateJumlah = now;
 

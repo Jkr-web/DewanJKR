@@ -707,3 +707,151 @@ body {
         /* Hide on small screens to save space in header */
     }
 }
+
+/* ===== MOBILE RESPONSIVE TABLES ===== */
+@media (max-width: 768px) {
+
+    /* Hide table headers on mobile */
+    table thead {
+        display: none;
+    }
+
+    /* Make table rows display as cards */
+    table tbody tr {
+        display: block;
+        margin-bottom: 1rem;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 1rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Make table cells display as rows */
+    table tbody td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 0;
+        border: none;
+        border-bottom: 1px solid #f1f5f9;
+        text-align: right;
+    }
+
+    table tbody td:last-child {
+        border-bottom: none;
+    }
+
+    /* Add labels before each cell using data-label attribute */
+    table tbody td::before {
+        content: attr(data-label);
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        color: #64748b;
+        letter-spacing: 0.05em;
+        text-align: left;
+        flex: 1;
+    }
+
+    /* Special handling for action buttons */
+    table tbody td:last-child {
+        justify-content: flex-end;
+        padding-top: 1rem;
+        margin-top: 0.5rem;
+        border-top: 2px solid #e2e8f0;
+    }
+
+    table tbody td:last-child::before {
+        content: '';
+        display: none;
+    }
+
+    /* Adjust button containers in mobile */
+    table tbody td .flex {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    /* Status badges in mobile */
+    .status-badge {
+        font-size: 0.7rem;
+        padding: 3px 10px;
+    }
+
+    /* Overflow scroll for tables that can't be restructured */
+    .overflow-x-auto {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Compact table text on mobile */
+    table {
+        font-size: 0.875rem;
+    }
+
+    /* Modal adjustments for mobile */
+    .modal-content {
+        width: 95%;
+        max-height: 95vh;
+        margin: 1rem;
+    }
+
+    .modal-header {
+        padding: 1rem 1.25rem;
+    }
+
+    .modal-header h2 {
+        font-size: 1.125rem;
+    }
+
+    /* Form adjustments */
+    .grid.grid-cols-2 {
+        grid-template-columns: 1fr;
+    }
+
+    /* Stats grid mobile */
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    /* Report sections mobile */
+    .report-editable-container {
+        padding: 1rem;
+    }
+
+    #reportEditableArea {
+        width: 100%;
+        min-height: auto;
+    }
+
+    .report-body {
+        padding: 1.5rem 1rem;
+    }
+
+    .report-section {
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+    }
+
+    .report-section h3 {
+        font-size: 1.125rem;
+    }
+}
+
+/* Tablet responsive (768px - 1024px) */
+@media (min-width: 768px) and (max-width: 1024px) {
+    table {
+        font-size: 0.9rem;
+    }
+
+    table th,
+    table td {
+        padding: 0.625rem;
+    }
+
+    .modal-content {
+        width: 90%;
+    }
+}

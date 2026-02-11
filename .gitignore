@@ -1,0 +1,23 @@
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Workspace generated files
+.vscode/
+.agent/
+.gemini/
+
+# Node modules
+node_modules/
+
+# Local testing
+temp_filter.html
+PANDUAN_UJIAN.md
+FIXES_APPLIED.md
+FIX_SUMMARY.md
+TROUBLESHOOTING.md
+
+# Secret files (if any)
+.env
+secret.js
+config.local.js

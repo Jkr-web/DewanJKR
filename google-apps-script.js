@@ -31,10 +31,6 @@ const SHEET_CONFIG = {
         name: 'Tetapan',
         headers: ['__backendId', 'key', 'value', 'updatedAt']
     },
-    admin: {
-        name: 'Admin',
-        headers: ['__backendId', 'nama', 'email', 'role', 'addedAt']
-    },
     log_stok: {
         name: 'LogStok',
         headers: ['__backendId', 'peralatanId', 'namaPeralatan', 'jenisPerubahan', 'kuantiti', 'catatan', 'timestamp']
@@ -194,7 +190,10 @@ function getSheetData(ss, sheetName) {
             }
         });
         return obj;
-    }).filter(obj => obj.__backendId); // Only return rows with ID
+    }).filter(obj => {
+        // Check if row has at least one non-empty value
+        return Object.values(obj).some(val => val !== "" && val !== null && val !== undefined);
+    });
 }
 
 /**
