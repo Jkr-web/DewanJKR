@@ -1140,6 +1140,12 @@ window.handleLogin = async function () {
 
     if (hasClientError) return;
 
+    const loginError = document.getElementById('login-error');
+    if (loginError) loginError.classList.add('hidden');
+
+    const progressBar = document.getElementById('login-progress-bar');
+    if (progressBar) progressBar.style.width = '0%';
+
     const submitBtn = document.querySelector('#form-login button[type="submit"]') || document.getElementById('btn-login');
     const originalBtnHTML = submitBtn ? submitBtn.innerHTML : null;
 
@@ -1191,6 +1197,12 @@ window.handleLogin = async function () {
 
         const userData = snap.data();
 
+        // Save last login time
+        const now = new Date().toISOString();
+        await window.db.collection("users").doc(uid).update({
+            lastLogin: now
+        }).catch(err => console.error("⚠️ Gagal simpan log masuk:", err));
+
         if (userData.status === 'Disekat') {
             await window.auth.signOut();
             throw new Error("❌ Akaun anda telah disekat. Sila hubungi pentadbir utama.");
@@ -1210,7 +1222,26 @@ window.handleLogin = async function () {
         localStorage.setItem('userEmail', username);
         localStorage.setItem('userRole', userData.role || '');
 
-        alert(`✅ Selamat datang, ${userData.name}`);
+        // SUCCESS UI
+        const overlay = document.getElementById('login-success-overlay');
+        const nameDisplay = document.getElementById('welcome-name');
+        const progressBar = document.getElementById('login-progress-bar');
+
+        if (overlay && nameDisplay) {
+            nameDisplay.textContent = userData.name || username.split('@')[0];
+            overlay.classList.remove('hidden');
+
+            // Trigger progress bar animation
+            setTimeout(() => {
+                if (progressBar) progressBar.style.width = '100%';
+            }, 100);
+
+            // Wait 3 seconds then redirect
+            await new Promise(resolve => setTimeout(resolve, 3000));
+        } else {
+            // Fallback for missing UI
+            alert(`✅ Selamat datang, ${userData.name}`);
+        }
 
         const pageLogin = document.getElementById('login-page');
         const pageApp = document.getElementById('app');
@@ -1341,6 +1372,20 @@ function logout() {
     const portalLogo = localStorage.getItem('portalLogo');
     const portalLogoFit = localStorage.getItem('portalLogoFit');
     const autoLogout = localStorage.getItem('portalAutoLogout');
+
+    // Record logout time before clearing data
+    try {
+        const userStr = sessionStorage.getItem("currentUser");
+        if (userStr && window.db) {
+            const userData = JSON.parse(userStr);
+            if (userData.uid) {
+                const now = new Date().toISOString();
+                window.db.collection("users").doc(userData.uid).update({
+                    lastLogout: now
+                });
+            }
+        }
+    } catch (e) { console.error("⚠️ Gagal simpan log keluar:", e); }
 
     localStorage.clear();
 
@@ -2165,13 +2210,27 @@ function checkUserDateOverlap() {
     const errorDiv = document.getElementById('user-date-overlap-error');
     const errorMessage = document.getElementById('user-date-overlap-message');
     const submitBtn = document.getElementById('btn-submit-user-permohonan');
+    const floatingReminder = document.getElementById('user-floating-reminder');
+    const ticks = ['user-terma-dewan-tick', 'user-terma-peralatan-tick', 'user-terma-syarat-tick'];
 
     if (selections.includes('Peralatan')) {
         updateUserItemDropdown();
     }
 
     if (!tarikhMula || !tarikhPulang || selections.length === 0) {
-        errorDiv.classList.add('hidden');
+        errorDiv?.classList.add('hidden');
+        floatingReminder?.classList.add('hidden');
+        const submitSection = document.getElementById('user-submit-section');
+        if (submitSection) submitSection.classList.add('hidden');
+
+        ticks.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.disabled = false;
+                el.parentElement.style.opacity = '1';
+                el.parentElement.style.cursor = 'pointer';
+            }
+        });
         if (submitBtn) submitBtn.disabled = false;
         return;
     }
@@ -2183,6 +2242,20 @@ function checkUserDateOverlap() {
         errorMessage.innerHTML = '⚠️ Tarikh mula mestilah sebelum tarikh tamat.';
         errorDiv.classList.remove('hidden');
         if (submitBtn) submitBtn.disabled = true;
+        if (floatingReminder) floatingReminder.classList.remove('hidden');
+        const submitSection = document.getElementById('user-submit-section');
+        if (submitSection) submitSection.classList.add('hidden');
+
+        ticks.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.disabled = true;
+                el.checked = false;
+                el.parentElement.style.opacity = '0.5';
+                el.parentElement.style.cursor = 'not-allowed';
+            }
+        });
+        checkUserTerms();
         return;
     }
 
@@ -2201,13 +2274,16 @@ function checkUserDateOverlap() {
             const existingStart = new Date(p.tarikhMulaPinjam);
             const existingEnd = new Date(p.tarikhPulang);
 
-            const existingEndMidnight = new Date(existingEnd);
-            existingEndMidnight.setDate(existingEndMidnight.getDate() + 1);
-            existingEndMidnight.setHours(0, 0, 0, 0);
+            // Block until END of return day PLUS one more day as buffer
+            const blockStart = new Date(existingStart);
+            blockStart.setHours(0, 0, 0, 0);
 
-            if (startDate < existingEndMidnight && endDate > existingStart) {
+            const blockEnd = new Date(existingEnd);
+            blockEnd.setHours(23, 59, 59, 999);
+
+            if (startDate <= blockEnd && endDate >= blockStart) {
                 hasConflict = true;
-                conflictMessages.push(`🏛️ Dewan telah ditempah pada ${formatDate(p.tarikhMulaPinjam)} - ${formatDate(p.tarikhPulang)}. Sila pilih tarikh / waktu lain.`);
+                conflictMessages.push(`Dewan ini ditempah bermula ${existingStart.getDate()}/${existingStart.getMonth() + 1} sehingga ${existingEnd.getDate()}/${existingEnd.getMonth() + 1}, sila pilih tarikh seterusnya.`);
                 break;
             }
         }
@@ -2257,9 +2333,33 @@ function checkUserDateOverlap() {
         errorMessage.innerHTML = conflictMessages.join('<br>');
         errorDiv.classList.remove('hidden');
         if (submitBtn) submitBtn.disabled = true;
+        if (floatingReminder) floatingReminder.classList.remove('hidden');
+        const submitSection = document.getElementById('user-submit-section');
+        if (submitSection) submitSection.classList.add('hidden');
+
+        ticks.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.disabled = true;
+                el.checked = false;
+                el.parentElement.style.opacity = '0.5';
+                el.parentElement.style.cursor = 'not-allowed';
+            }
+        });
+        checkUserTerms();
     } else {
         errorDiv.classList.add('hidden');
         if (submitBtn) submitBtn.disabled = false;
+        if (floatingReminder) floatingReminder.classList.add('hidden');
+
+        ticks.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.disabled = false;
+                el.parentElement.style.opacity = '1';
+                el.parentElement.style.cursor = 'pointer';
+            }
+        });
     }
 }
 
@@ -2474,7 +2574,79 @@ function toggleUserPermohonanFields() {
     if (tujuanSection) tujuanSection.textContent = sectionNumber + 1;
     if (termaSection) termaSection.textContent = sectionNumber + 2;
 
+    const availGuide = document.getElementById('user-availability-guide');
+    if (hasDewan) {
+        availGuide?.classList.remove('hidden');
+        renderUserAvailabilityCalendar();
+    } else {
+        availGuide?.classList.add('hidden');
+    }
+
+    checkUserDateOverlap();
     checkUserTerms();
+}
+
+function renderUserAvailabilityCalendar() {
+    const container = document.getElementById('availability-calendar-container');
+    if (!container) return;
+
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+
+    const dewanPermohonan = allData.filter(d =>
+        d.type === 'permohonan' &&
+        d.jenisPermohonan?.includes('Dewan') &&
+        (d.status === 'Dalam Proses' || d.status === 'Diluluskan' || d.status === 'Selesai')
+    );
+
+    const monthNames = ["Januari", "Februari", "Mac", "April", "Mei", "Jun", "Julai", "Ogos", "September", "Oktober", "November", "Disember"];
+
+    let html = `<div class="col-span-7 text-center font-black text-slate-700 mb-2 py-1 border-b border-slate-200">${monthNames[currentMonth]} ${currentYear}</div>`;
+    const dayNames = ['Aha', 'Isn', 'Sel', 'Rab', 'Kha', 'Jum', 'Sab'];
+    dayNames.forEach(d => {
+        html += `<div class="text-center font-bold text-slate-400 py-1">${d}</div>`;
+    });
+
+    for (let i = 0; i < firstDay; i++) {
+        html += `<div class="cal-empty"></div>`;
+    }
+
+    for (let d = 1; d <= daysInMonth; d++) {
+        const checkDate = new Date(currentYear, currentMonth, d);
+        checkDate.setHours(12, 0, 0, 0);
+
+        let statusClass = 'cal-day-available'; // Default Green
+
+        // Priority: Blocked (Red) > Pending (Blue)
+        let isBlocked = false;
+        let isPending = false;
+
+        for (const p of dewanPermohonan) {
+            const start = new Date(p.tarikhMulaPinjam);
+            const end = new Date(p.tarikhPulang);
+            const bStart = new Date(start); bStart.setHours(0, 0, 0, 0);
+            const bEnd = new Date(end); bEnd.setHours(23, 59, 59, 999);
+
+            if (checkDate >= bStart && checkDate <= bEnd) {
+                if (p.status === 'Diluluskan' || p.status === 'Selesai') {
+                    isBlocked = true;
+                    break;
+                } else if (p.status === 'Dalam Proses') {
+                    isPending = true;
+                }
+            }
+        }
+
+        if (isBlocked) statusClass = 'cal-day-blocked';
+        else if (isPending) statusClass = 'cal-day-pending';
+
+        html += `<div class="cal-day ${statusClass}">${d}</div>`;
+    }
+
+    container.innerHTML = html;
 }
 
 function checkUserTerms() {
@@ -2483,6 +2655,23 @@ function checkUserTerms() {
 
     const hasDewan = selections.includes('Dewan');
     const hasPeralatan = selections.includes('Peralatan');
+
+    const overlapError = document.getElementById('user-date-overlap-error');
+    if (overlapError && !overlapError.classList.contains('hidden')) {
+        const submitSection = document.getElementById('user-submit-section');
+        if (submitSection) submitSection.classList.add('hidden');
+
+        ['user-terma-dewan-tick', 'user-terma-peralatan-tick', 'user-terma-syarat-tick'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.disabled = true;
+                el.checked = false;
+                el.parentElement.style.opacity = '0.5';
+                el.parentElement.style.cursor = 'not-allowed';
+            }
+        });
+        return;
+    }
 
     let allChecked = true;
 
@@ -4315,7 +4504,25 @@ function renderAdminTable(admins) {
                 <td class="px-6 py-4 text-left" data-label="Peranan">
                     <span class="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-xs font-bold">${admin.role || 'Staff'}</span>
                 </td>
-                <td class="px-6 py-4 text-left" data-label="Status">
+                <td class="px-6 py-4 text-center" data-label="Daftar Masuk">
+                    <div class="flex flex-col items-center">
+                        <span class="text-[11px] font-bold text-slate-700">${admin.lastLogin ? formatDate(admin.lastLogin) : '<span class="text-slate-300 font-normal italic">Belum Pernah</span>'}</span>
+                        ${admin.lastLogin ? '<span class="text-[9px] text-green-600 font-bold uppercase tracking-tighter">Login Terakhir</span>' : ''}
+                    </div>
+                </td>
+                <td class="px-6 py-4 text-center" data-label="Daftar Keluar">
+                    <div class="flex flex-col items-center">
+                        <span class="text-[11px] font-bold text-slate-700">
+                            ${admin.lastLogout && (!admin.lastLogin || new Date(admin.lastLogout) > new Date(admin.lastLogin))
+                ? formatDate(admin.lastLogout)
+                : admin.lastLogin
+                    ? '<span class="inline-flex items-center gap-1 text-blue-600 animate-pulse font-black italic">Sedang Aktif</span>'
+                    : '<span class="text-slate-300 font-normal italic">-</span>'}
+                        </span>
+                        ${admin.lastLogout && (!admin.lastLogin || new Date(admin.lastLogout) > new Date(admin.lastLogin)) ? '<span class="text-[9px] text-orange-600 font-bold uppercase tracking-tighter">Logout Terakhir</span>' : ''}
+                    </div>
+                </td>
+                <td class="px-6 py-4 text-center" data-label="Status">
                     <span class="px-3 py-1 ${statusClass} rounded-full text-xs font-bold">${status}</span>
                 </td>
                 <td class="px-6 py-4" data-label="Tindakan">

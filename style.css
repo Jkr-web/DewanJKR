@@ -79,9 +79,38 @@ body {
     animation: slideIn 0.3s ease-out;
 }
 
-.toast {
-    animation: slideIn 0.3s ease-out;
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
+
+@keyframes scaleUp {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.4s ease-out forwards;
+}
+
+.animate-scale {
+    animation: scaleUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
 
 /* --- LAPORAN GLOBAL STYLES --- */
 #page-laporan {
@@ -1003,4 +1032,71 @@ body.user-mode #modal-user-form .bg-gradient-to-r {
         display: flex;
         justify-content: flex-end;
     }
+}
+
+@keyframes bounce-subtle {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-5px);
+    }
+}
+
+.animate-bounce-subtle {
+    animation: bounce-subtle 2s infinite ease-in-out;
+}
+
+#user-floating-reminder {
+    box-shadow: 0 -10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+}
+
+.cal-day {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 2px;
+    border-radius: 4px;
+    background: white;
+    border: 1px solid #e2e8f0;
+    font-weight: 500;
+}
+
+.cal-day-available {
+    background: #f0fdf4 !important;
+    border-color: #bbf7d0 !important;
+    color: #166534 !important;
+}
+
+.cal-day-pending {
+    background: repeating-linear-gradient(45deg,
+            #eff6ff,
+            #eff6ff 5px,
+            #dbeafe 5px,
+            #dbeafe 10px) !important;
+    border-color: #60a5fa !important;
+    color: #1e40af !important;
+    font-weight: 700;
+    text-shadow: 0 0 2px white;
+}
+
+.cal-day-blocked {
+    background: repeating-linear-gradient(45deg,
+            #fee2e2,
+            #fee2e2 5px,
+            #fecaca 5px,
+            #fecaca 10px) !important;
+    border-color: #f87171 !important;
+    color: #991b1b !important;
+    font-weight: 800;
+    text-shadow: 0 0 2px white;
+}
+
+
+.cal-empty {
+    visibility: hidden;
 }
