@@ -1,4 +1,3 @@
-// ===== SYSTEM CLOCK INITIALIZATION =====
 function updateClock() {
     try {
         const now = new Date();
@@ -20,7 +19,6 @@ function updateClock() {
     } catch (e) { console.error('Clock error:', e); }
 }
 
-// ===== PASSWORD VISIBILITY TOGGLE =====
 window.togglePasswordVisibility = function (inputId, btn) {
     const input = document.getElementById(inputId);
     if (!input) return;
@@ -28,16 +26,13 @@ window.togglePasswordVisibility = function (inputId, btn) {
     const isPassword = input.type === 'password';
     input.type = isPassword ? 'text' : 'password';
 
-    // Update icon
     const svg = btn.querySelector('svg');
     if (svg) {
         if (isPassword) {
-            // Switch to Eye Closed Icon
             svg.innerHTML = `
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7a10.057 10.057 0 012.183-3.043m3.016-1.558A9.992 9.992 0 0112 5c4.478 0 8.268 2.943 9.542 7a10.057 10.057 0 01-2.183 3.043M9.9 9.9a3 3 0 114.2 4.2M3 3l18 18"/>
             `;
         } else {
-            // Switch to Eye Open Icon
             svg.innerHTML = `
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
@@ -58,17 +53,15 @@ if (document.readyState === 'loading') {
     startClock();
 }
 
-// ===== GOOGLE SHEETS DATABASE INTEGRATION =====
-// PENTING: Gantikan URL ini dengan URL deployment Apps Script anda
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwmELD85GawQHlq2t_d-jB-yFO8Zt6cQOs86wVlLwzzFx2cgjbkecADiHmimJ7h0c8G/exec'; // <- TUKAR INI!
 
-// Google Sheets Database API
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwijGRohY9lP0Jg2Pi99F8KiiwdldFHJjsWSwQTisDNvOxT1EBfNxvTR_YLz8SNxPuggQ/exec';
+const AUTH_TOKEN = 'CInta_Mtaa2026_diRkhsg';
+
 const GoogleSheetsDB = {
     isConfigured: function () {
         return GOOGLE_SCRIPT_URL && GOOGLE_SCRIPT_URL !== 'YOUR_GOOGLE_SCRIPT_URL_HERE';
     },
 
-    // Test connection to Google Sheets
     testConnection: async function () {
         if (!this.isConfigured()) {
             console.warn('⚠️ Google Sheets belum dikonfigurasi. Sila masukkan URL Apps Script.');
@@ -76,10 +69,10 @@ const GoogleSheetsDB = {
         }
 
         try {
-            const response = await fetch(`${GOOGLE_SCRIPT_URL}?action=test`);
+            const response = await fetch(`${GOOGLE_SCRIPT_URL}?action=test&token=${encodeURIComponent(AUTH_TOKEN)}`);
             const result = await response.json();
             if (result.success) {
-                console.log('✅ Google Sheets Connected!', result);
+                // console.log('✅ Google Sheets Connected!');
             }
             return result;
         } catch (error) {
@@ -88,14 +81,14 @@ const GoogleSheetsDB = {
         }
     },
 
-    // Fetch all data from Google Sheets
+
     fetchAll: async function () {
         if (!this.isConfigured()) return { success: false, data: [] };
 
         try {
-            const response = await fetch(`${GOOGLE_SCRIPT_URL}?action=getAll`);
+            const response = await fetch(`${GOOGLE_SCRIPT_URL}?action=getAll&token=${encodeURIComponent(AUTH_TOKEN)}`);
             const result = await response.json();
-            console.log('📥 Data fetched from Google Sheets:', result);
+            // console.log('📥 Data fetched from Google Sheets:', result);
             return result;
         } catch (error) {
             console.error('❌ Fetch from Google Sheets failed:', error);
@@ -103,7 +96,7 @@ const GoogleSheetsDB = {
         }
     },
 
-    // Add single item to Google Sheets
+
     add: async function (type, item) {
         if (!this.isConfigured()) return { success: false };
 
@@ -111,10 +104,10 @@ const GoogleSheetsDB = {
             const response = await fetch(GOOGLE_SCRIPT_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain' },
-                body: JSON.stringify({ action: 'add', type: type, item: item })
+                body: JSON.stringify({ action: 'add', type: type, item: item, token: AUTH_TOKEN })
             });
             const result = await response.json();
-            console.log('📤 Data added to Google Sheets:', result);
+            // console.log('📤 Data added to Google Sheets:', result);
             return result;
         } catch (error) {
             console.error('❌ Add to Google Sheets failed:', error);
@@ -122,7 +115,7 @@ const GoogleSheetsDB = {
         }
     },
 
-    // Update item in Google Sheets
+
     update: async function (type, id, item) {
         if (!this.isConfigured()) return { success: false };
 
@@ -130,10 +123,10 @@ const GoogleSheetsDB = {
             const response = await fetch(GOOGLE_SCRIPT_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain' },
-                body: JSON.stringify({ action: 'update', type: type, id: id, item: item })
+                body: JSON.stringify({ action: 'update', type: type, id: id, item: item, token: AUTH_TOKEN })
             });
             const result = await response.json();
-            console.log('📝 Data updated in Google Sheets:', result);
+            // console.log('📝 Data updated in Google Sheets:', result);
             return result;
         } catch (error) {
             console.error('❌ Update Google Sheets failed:', error);
@@ -141,7 +134,7 @@ const GoogleSheetsDB = {
         }
     },
 
-    // Delete item from Google Sheets
+
     delete: async function (type, id) {
         if (!this.isConfigured()) return { success: false };
 
@@ -149,10 +142,10 @@ const GoogleSheetsDB = {
             const response = await fetch(GOOGLE_SCRIPT_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain' },
-                body: JSON.stringify({ action: 'delete', type: type, id: id })
+                body: JSON.stringify({ action: 'delete', type: type, id: id, token: AUTH_TOKEN })
             });
             const result = await response.json();
-            console.log('🗑️ Data deleted from Google Sheets:', result);
+            // console.log('🗑️ Data deleted from Google Sheets:', result);
             return result;
         } catch (error) {
             console.error('❌ Delete from Google Sheets failed:', error);
@@ -160,19 +153,19 @@ const GoogleSheetsDB = {
         }
     },
 
-    // Sync all local data to Google Sheets
+
     syncToSheets: async function (allData) {
         if (!this.isConfigured()) return { success: false };
 
         try {
-            console.log('🔄 Syncing all data to Google Sheets...');
+            // console.log('🔄 Syncing all data to Google Sheets...');
             const response = await fetch(GOOGLE_SCRIPT_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain' },
-                body: JSON.stringify({ action: 'sync', allData: allData })
+                body: JSON.stringify({ action: 'sync', allData: allData, token: AUTH_TOKEN })
             });
             const result = await response.json();
-            console.log('✅ Sync complete:', result);
+            // console.log('✅ Sync complete:', result);
             return result;
         } catch (error) {
             console.error('❌ Sync to Google Sheets failed:', error);
@@ -180,7 +173,7 @@ const GoogleSheetsDB = {
         }
     },
 
-    // Export localStorage data to Google Sheets (one-time export)
+
     exportLocalToSheets: async function () {
         const localData = JSON.parse(localStorage.getItem('dewanData') || '[]');
         if (localData.length === 0) {
@@ -192,14 +185,13 @@ const GoogleSheetsDB = {
         return await this.syncToSheets(localData);
     },
 
-    // Import data from Google Sheets to localStorage
+
     importFromSheets: async function () {
         const result = await this.fetchAll();
         if (result.success && result.data) {
             localStorage.setItem('dewanData', JSON.stringify(result.data));
             console.log(`📥 Imported ${result.data.length} items from Google Sheets`);
 
-            // Refresh UI
             if (typeof DataStore !== 'undefined') {
                 DataStore.notify();
             }
@@ -209,15 +201,13 @@ const GoogleSheetsDB = {
     }
 };
 
-// Make GoogleSheetsDB available globally
 window.GoogleSheetsDB = GoogleSheetsDB;
 
-// ===== FIREBASE AUTH HANDLER =====
 let auth = null;
+let isUserMode = (new URLSearchParams(window.location.search).get('user') === 'true') || window.location.hash.includes('user=true');
 let firebaseInitialized = false;
 let firebaseReadyPromise = null;
 
-// Create a promise that resolves when Firebase is ready
 function getFirebaseReady() {
     return new Promise((resolve) => {
         if (firebaseInitialized && auth) {
@@ -225,7 +215,6 @@ function getFirebaseReady() {
             return;
         }
 
-        // Poll every 100ms until Firebase is ready
         const checkInterval = setInterval(() => {
             if (firebaseInitialized && auth && typeof firebase !== 'undefined') {
                 clearInterval(checkInterval);
@@ -233,7 +222,6 @@ function getFirebaseReady() {
             }
         }, 100);
 
-        // Timeout after 10 seconds
         setTimeout(() => {
             clearInterval(checkInterval);
             resolve(); // Resolve anyway to avoid infinite wait
@@ -263,7 +251,6 @@ function showLoginError(message, duration = 7000) {
     }, duration);
 }
 
-// Load Firebase SDKs dynamically if they are not already present. This helps when CDN is blocked or network is slow.
 async function ensureFirebaseSDKs(timeoutMs = 10000) {
     if (typeof firebase !== 'undefined') return;
     if (window._firebaseLoadAttempted) return; // prevent duplicate attempts
@@ -292,7 +279,6 @@ async function ensureFirebaseSDKs(timeoutMs = 10000) {
         });
     }
 
-    // Timeout wrapper
     const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout memuat Firebase SDK')), timeoutMs));
 
     try {
@@ -311,7 +297,6 @@ async function ensureFirebaseSDKs(timeoutMs = 10000) {
     }
 }
 
-// --- FIREBASE CONFIGURATION ---
 const firebaseConfig = {
     apiKey: "AIzaSyAYBhrerG2yfHk-xFna0tLI-QbaVDNaV5M",
     authDomain: "sistem-alat-ganti.firebaseapp.com",
@@ -322,7 +307,6 @@ const firebaseConfig = {
     measurementId: "G-44E4RC3EC8"
 };
 
-// Initialize Firebase when page is ready
 async function initializeFirebase() {
     if (firebaseInitialized) {
         console.log('ℹ️ Firebase already initialized');
@@ -335,43 +319,37 @@ async function initializeFirebase() {
         } catch (err) {
             console.error('❌ Firebase SDK load failed:', err);
             showLoginError('Gagal memuat Firebase SDK. Sila semak sambungan rangkaian atau pembekal CDN.');
-            // Retry after a delay so user can fix network/pop-up issues
             setTimeout(initializeFirebase, 3000);
             return;
         }
     }
 
     try {
-        // Initialize Firebase if not already initialized
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
-            console.log('🔥 Firebase app initialized');
+            // console.log('🔥 Firebase app initialized');
         }
 
         auth = firebase.auth();
         window.auth = auth; // Expose globally for reset password function
-        // Initialize Firestore if available (we included the firestore SDK)
         if (typeof firebase.firestore === 'function') {
             db = firebase.firestore();
             window.db = db;
-            console.log('🔥 Firestore ready');
+            // console.log('🔥 Firestore ready');
         }
         firebaseInitialized = true;
         window.firebaseReady = true;
-        console.log('🔥 Firebase Auth ready');
+        // console.log('🔥 Firebase Auth ready');
 
-        // Setup auth listener
         setupAuthListener();
 
     } catch (error) {
         console.error('❌ Firebase initialization error:', error);
         showLoginError('Firebase initialization error: ' + (error.message || error));
-        // Retry after delay
         setTimeout(initializeFirebase, 1000);
     }
 }
 
-// Setup authentication state listener
 function setupAuthListener() {
     if (!auth) {
         console.error('❌ Auth not available for listener');
@@ -381,9 +359,8 @@ function setupAuthListener() {
     try {
         auth.onAuthStateChanged(async (user) => {
             if (user) {
-                console.log('✅ User logged in:', user.email);
+                // console.log('✅ User logged in:', user.email);
 
-                // Check for explicit logged-in intent
                 const isLoggedInFlag = localStorage.getItem('isLoggedIn') === 'true';
                 const isManualStarted = sessionStorage.getItem('manualLoginStarted') === 'true' || sessionStorage.getItem('manualLoginInProgress') === 'true';
 
@@ -393,7 +370,6 @@ function setupAuthListener() {
                     return;
                 }
 
-                // Set Session State
                 sessionStorage.setItem('loggedIn', 'true');
                 localStorage.setItem('isLoggedIn', 'true');
                 localStorage.setItem('userEmail', user.email);
@@ -401,10 +377,8 @@ function setupAuthListener() {
                 const userName = user.displayName || user.email.split('@')[0];
                 localStorage.setItem('userName', userName);
 
-                // Update specific UI components
                 updateUserUI(userName, user.email, user.photoURL);
 
-                // Try to get additional info from Firestore
                 if (typeof db !== 'undefined') {
                     db.collection('users').doc(user.uid).get()
                         .then(docSnap => {
@@ -412,7 +386,6 @@ function setupAuthListener() {
                                 const u = docSnap.data();
                                 const finalName = u.name || userName;
 
-                                // PENTING: Jika disekat, jangan benarkan masuk!
                                 if (u.status === 'Disekat') {
                                     console.warn('⛔ Akaun disekat (dari listener):', user.email);
                                     showLoginError('Akses ditolak. Akaun anda telah disekat. Sila hubungi pentadbir utama.');
@@ -424,12 +397,10 @@ function setupAuthListener() {
                                 localStorage.setItem('userName', finalName);
                                 updateUserUI(finalName, user.email, user.photoURL);
 
-                                // Hanya tunjuk UI jika status OK dan bukan sedang manual login
                                 if (!sessionStorage.getItem('manualLoginInProgress')) {
                                     finalizeLoginUI();
                                 }
                             } else {
-                                // Jika profil Firestore tidak wujud, sekat akses (kecuali jika master email yg anda tetapkan secara manual di Firebase)
                                 console.warn('⛔ Profil Firestore tidak dijumpai:', user.email);
                                 if (!sessionStorage.getItem('manualLoginInProgress')) {
                                     showLoginError('Akses ditolak. Akaun anda tidak berdaftar dalam sistem.');
@@ -438,13 +409,11 @@ function setupAuthListener() {
                             }
                         }).catch(err => {
                             console.warn('Firestore read error:', err);
-                            // Fallback jika Firestore problem tapi auth OK
                             if (!sessionStorage.getItem('manualLoginInProgress')) {
                                 finalizeLoginUI();
                             }
                         });
                 } else {
-                    // Fallback jika Firestore tak sedia
                     if (!sessionStorage.getItem('manualLoginInProgress')) {
                         finalizeLoginUI();
                     }
@@ -472,7 +441,11 @@ function setupAuthListener() {
             } else {
                 console.log('ℹ️ No user logged in');
 
-                // CRITICAL: Only clear if not logged in locally
+                if (isUserMode) {
+                    console.log('🚀 User Mode: Skipping login page force');
+                    return;
+                }
+
                 const isLocalLogin = localStorage.getItem('loginType') === 'local';
                 if (isLocalLogin) {
                     console.log('✅ Local session active, ignoring Firebase null user');
@@ -500,9 +473,7 @@ function setupAuthListener() {
     }
 }
 
-// Google Sign-In button handler
 document.addEventListener('DOMContentLoaded', () => {
-    // Initialize Firebase immediately
     initializeFirebase();
 
 
@@ -510,16 +481,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
-//form data js untuk bahagian user,admin dan table permohonan form+table
 
-// FORM USER - DISABLING OLD HANDLER (Consolidated at the end)
 /*
 document.getElementById('form-user-permohonan').addEventListener('submit', async (e) => {
     ...
 });
 */
 
-// ADMIN FORM HANDLER
 document.getElementById('form-permohonan').addEventListener('submit', async (e) => {
     e.preventDefault();
     console.log('🚀 Admin form submitted');
@@ -565,7 +533,6 @@ document.getElementById('form-permohonan').addEventListener('submit', async (e) 
         document.getElementById('admin-terma-peralatan').classList.add('hidden');
         document.getElementById('admin-terma-warning').classList.add('hidden');
 
-        // Refresh the permohonan table to show new entry
         renderPermohonan();
         updateDashboard();
     } else {
@@ -577,7 +544,6 @@ document.getElementById('form-permohonan').addEventListener('submit', async (e) 
     btn.textContent = 'Hantar Permohonan';
 });
 
-// --- INVENTORY UTILITY ---
 /**
  * Calculates available stock for a specific item during a specific time period.
  * @param {string} itemId The __backendId of the equipment
@@ -586,20 +552,16 @@ document.getElementById('form-permohonan').addEventListener('submit', async (e) 
  * @param {string} excludePermohonanId (Optional) ID of a permohonan to ignore (useful when editing a request)
  * @returns {number} The remaining units available
  */
-// Helper to parse dates robustly
 function parseSafeDate(dateStr) {
     if (!dateStr) return new Date(NaN);
     if (dateStr instanceof Date) return dateStr;
 
-    // Try standard parsing
     let d = new Date(dateStr);
     if (!isNaN(d.getTime())) return d;
 
-    // Try DD/MM/YYYY
     if (typeof dateStr === 'string' && dateStr.includes('/')) {
         const parts = dateStr.split(' ')[0].split('/');
         if (parts.length === 3) {
-            // Assume DD/MM/YYYY
             d = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
             if (!isNaN(d.getTime())) return d;
         }
@@ -619,7 +581,6 @@ function getAvailableStock(itemId, startDate = null, endDate = null, excludePerm
 
     const hasDates = !isNaN(start.getTime()) && !isNaN(end.getTime());
 
-    // Filter permohonan that should deduct stock
     const activePermohonan = allData.filter(d =>
         d.type === 'permohonan' &&
         !['selesai', 'ditolak', 'dibatalkan'].includes((d.status || '').toLowerCase()) &&
@@ -633,13 +594,11 @@ function getAvailableStock(itemId, startDate = null, endDate = null, excludePerm
             const reqStart = parseSafeDate(req.tarikhMulaPinjam);
             const reqEnd = parseSafeDate(req.tarikhPulang);
             if (!isNaN(reqStart.getTime()) && !isNaN(reqEnd.getTime())) {
-                // Standard overlap: StartA < EndB AND EndA > StartB
                 if (start < reqEnd && end > reqStart) {
                     shouldDeduct = true;
                 }
             }
         } else {
-            // If no dates provided, we count it if it's "Active"
             shouldDeduct = true;
         }
 
@@ -655,8 +614,6 @@ function getAvailableStock(itemId, startDate = null, endDate = null, excludePerm
                         }
                     }
                 } else if (req.items && req.items.includes(p.namaPeralatan)) {
-                    // Fallback for old data without itemsData (very basic)
-                    // If the item name is in the string, assume 1 unit if we can't parse more
                     const match = req.items.match(new RegExp(`${p.namaPeralatan}\\s*\\((\\d+)\\s*unit\\)`, 'i'));
                     unitsInUse += match ? parseInt(match[1]) : 1;
                 }
@@ -670,7 +627,6 @@ function getAvailableStock(itemId, startDate = null, endDate = null, excludePerm
     return Math.max(0, baki);
 }
 
-// Data Persistence & Storage - with Google Sheets Sync
 const DataStore = {
     key: 'dewanData',
     syncEnabled: true, // Toggle to enable/disable Google Sheets sync
@@ -688,10 +644,8 @@ const DataStore = {
     save: function (data) {
         if (!Array.isArray(data)) return;
 
-        // Process data to ensure IDs exist
         const processedData = data.map((item, idx) => {
             if (!item.__backendId) {
-                // Try to use ID if available, otherwise generate temp ID
                 item.__backendId = item.id || `temp_${item.type || 'unknown'}_${idx}_${Date.now()}`;
             }
             return item;
@@ -712,8 +666,6 @@ const DataStore = {
         data.push(item);
         this.save(data);
 
-        // Sync to Google Sheets (Wait for it to ensure consistency)
-        // Sync to Google Sheets
         if (this.syncEnabled && GoogleSheetsDB.isConfigured()) {
             try {
                 const res = await GoogleSheetsDB.add(item.type, item);
@@ -732,7 +684,6 @@ const DataStore = {
 
     update: async function (id, updatedItem) {
         let data = this.get();
-        // Convert id to string for consistent comparison
         const targetId = String(id).trim();
         const index = data.findIndex(d => d.__backendId && String(d.__backendId).trim() === targetId);
 
@@ -770,13 +721,11 @@ const DataStore = {
 
         console.log(`🗑️ DataStore: Attempting delete of [${itemType}] ID: ${targetId}`);
 
-        // Filter out item
         const initialLength = data.length;
         data = data.filter(d => !d.__backendId || String(d.__backendId).trim() !== targetId);
 
         this.save(data);
 
-        // Sync to Google Sheets
         if (this.syncEnabled && GoogleSheetsDB.isConfigured()) {
             try {
                 console.log(`📡 Syncing delete to Sheets for [${itemType}] ID: ${targetId}`);
@@ -798,7 +747,7 @@ const DataStore = {
 
     notify: function () {
         allData = this.get();
-        console.log('🔄 DataStore Notify: refreshing UI');
+        // console.log('🔄 DataStore Notify: refreshing UI');
 
         const tasks = [
             { name: 'Dashboard', fn: updateDashboard },
@@ -831,7 +780,6 @@ const DataStore = {
         });
     },
 
-    // Load data from Google Sheets
     loadFromGoogleSheets: async function () {
         if (!GoogleSheetsDB.isConfigured()) {
             console.log('ℹ️ Google Sheets not configured, using localStorage only');
@@ -856,7 +804,6 @@ const DataStore = {
         }
     },
 
-    // Full sync - push all local data to Google Sheets
     syncAllToSheets: async function () {
         if (!GoogleSheetsDB.isConfigured()) {
             console.warn('⚠️ Google Sheets not configured');
@@ -878,7 +825,6 @@ const DataStore = {
     }
 };
 
-// Listen for storage changes from other tabs
 window.addEventListener('storage', (e) => {
     if (e.key === DataStore.key) {
         console.log('🔄 Storan dikemaskini dari tab lain');
@@ -886,13 +832,11 @@ window.addEventListener('storage', (e) => {
     }
 });
 
-// Initialize Data
 let allData = DataStore.get();
 let currentConfig = {};
 let isLoggedIn = false;
 
 
-// Initialize Element SDK (Keep existing)
 const defaultConfig = {
     portal_title: 'PENGURUSAN DEWAN SRI KINABATANGAN',
     org_name: 'Sistem Portal',
@@ -945,16 +889,13 @@ if (window.elementSdk) {
     });
 }
 
-// ===== GOOGLE SHEETS UI FUNCTIONS =====
 
-// Test Google Sheets connection
 async function testGoogleSheetsConnection() {
     const indicator = document.getElementById('sheets-status-indicator');
     const statusText = document.getElementById('sheets-status-text');
 
     if (!indicator || !statusText) return;
 
-    // Show loading state
     indicator.className = 'w-3 h-3 rounded-full bg-yellow-400 animate-pulse';
     statusText.textContent = 'Menguji sambungan...';
 
@@ -977,7 +918,6 @@ async function testGoogleSheetsConnection() {
     }
 }
 
-// Sync/Export data to Google Sheets
 async function syncDataToSheets() {
     if (!GoogleSheetsDB.isConfigured()) {
         showToast('⚠️ Sila konfigurasi Google Sheets terlebih dahulu');
@@ -997,7 +937,6 @@ async function syncDataToSheets() {
     }
 }
 
-// Load/Import data from Google Sheets
 async function loadDataFromSheets() {
     if (!GoogleSheetsDB.isConfigured()) {
         showToast('⚠️ Sila konfigurasi Google Sheets terlebih dahulu');
@@ -1019,7 +958,6 @@ async function loadDataFromSheets() {
     }
 }
 
-// Toggle auto-sync feature
 function toggleAutoSync() {
     const toggle = document.getElementById('auto-sync-toggle');
     if (toggle) {
@@ -1029,7 +967,6 @@ function toggleAutoSync() {
     }
 }
 
-// Update Google Sheets status indicator on page load
 function updateSheetsStatusIndicator() {
     const indicator = document.getElementById('sheets-status-indicator');
     const statusText = document.getElementById('sheets-status-text');
@@ -1045,11 +982,9 @@ function updateSheetsStatusIndicator() {
     }
 }
 
-// Auto-load data from Google Sheets on page load
 async function autoLoadFromGoogleSheets() {
     if (!GoogleSheetsDB.isConfigured()) {
         console.log('ℹ️ Google Sheets not configured, using localStorage');
-        // Still apply settings even without Google Sheets
         applyBgSettings();
         applyLogoSettings();
         return;
@@ -1064,38 +999,32 @@ async function autoLoadFromGoogleSheets() {
             DataStore.save(result.data);
             console.log(`✅ Auto-loaded ${result.data.length} items from Google Sheets`);
 
-            // Update status indicator to green
             const indicator = document.getElementById('sheets-status-indicator');
             const statusText = document.getElementById('sheets-status-text');
             if (indicator) indicator.className = 'w-3 h-3 rounded-full bg-green-500';
             if (statusText) statusText.textContent = '✅ Data dimuat dari Google Sheets';
         } else {
             console.log('ℹ️ No data in Google Sheets or fetch failed, using localStorage');
-            // Still apply settings even if no data
             applyBgSettings();
             applyLogoSettings();
         }
     } catch (error) {
         console.warn('⚠️ Auto-load from Google Sheets failed:', error.message);
-        // Silently fail - just use localStorage and apply settings
         applyBgSettings();
         applyLogoSettings();
     }
 }
 
-// Check Login & Page State on Load
 window.addEventListener('DOMContentLoaded', () => {
     try {
-        const urlParams = new URLSearchParams(window.location.search);
-        const isUserMode = urlParams.get('user') === 'true' || window.location.hash.includes('user=true');
+        if (!isUserMode) {
+            isUserMode = (new URLSearchParams(window.location.search).get('user') === 'true') || window.location.hash.includes('user=true');
+        }
+        console.log('🔍 App Init - isUserMode:', isUserMode, 'Hash:', window.location.hash);
 
-        // 1. Update Google Sheets status indicator
         updateSheetsStatusIndicator();
 
-        // 2. Auto-load data from Google Sheets (if configured)
-        // This will call refreshUI() which includes applyBgSettings() and applyLogoSettings()
         autoLoadFromGoogleSheets().then(() => {
-            // Start looping for live updates only if NOT in user mode (Admin side needs to know)
             if (!isUserMode) {
                 startRealtimeSync();
             }
@@ -1103,7 +1032,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
         if (isUserMode) {
             console.log('🚀 User Mode Activated');
-            // User Mode: Hide Login & Admin App, Show User Form ONLY
             const loginPage = document.getElementById('login-page');
             const appPage = document.getElementById('app');
 
@@ -1126,12 +1054,11 @@ window.addEventListener('DOMContentLoaded', () => {
                 console.error('❌ modal-user-form NOT FOUND');
             }
             document.body.classList.add('user-mode');
+            applyBgSettings();
 
-            // Trigger data update for user form
             DataStore.notify();
 
         } else {
-            // Admin Logic
             const storedLogin = localStorage.getItem('isLoggedIn');
             if (storedLogin === 'true') {
                 isLoggedIn = true;
@@ -1147,7 +1074,6 @@ window.addEventListener('DOMContentLoaded', () => {
                     pageApp.style.display = 'flex';
                 }
 
-                // Priority: URL Hash > LocalStorage > Default
                 const hashPage = window.location.hash.replace('#', '');
                 const storedPage = localStorage.getItem('lastPage');
                 const validPages = ['dashboard', 'permohonan', 'peralatan', 'tetapan', 'laporan', 'admin'];
@@ -1161,10 +1087,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
                 showPage(pageToLoad);
 
-                // Trigger data update
                 DataStore.notify();
             } else {
-                // Not Logged In - Show Login Page
                 const pageLogin = document.getElementById('login-page');
                 const pageApp = document.getElementById('app');
                 if (pageApp) {
@@ -1186,15 +1110,13 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Login handler (Global function for button click)
 window.handleLogin = async function () {
     const usernameInput = document.getElementById('username');
     const passwordInput = document.getElementById('password');
     const username = usernameInput.value.trim();
     const password = passwordInput.value.trim();
-    console.log('🚀 Memulakan log masuk API untuk:', username);
+    // console.log('🚀 Memulakan log masuk API untuk:', username);
 
-    // Reset individual errors
     const userErr = document.getElementById('username-error');
     const passErr = document.getElementById('password-error');
     if (userErr) userErr.classList.add('hidden');
@@ -1223,7 +1145,15 @@ window.handleLogin = async function () {
 
     if (submitBtn) {
         submitBtn.disabled = true;
-        submitBtn.innerHTML = 'Sila tunggu...';
+        submitBtn.innerHTML = `
+            <div class="flex items-center justify-center gap-2">
+                <svg class="w-5 h-5 animate-spin-slow" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Sila tunggu...</span>
+            </div>
+        `;
     }
 
     function restoreSubmit() {
@@ -1234,23 +1164,20 @@ window.handleLogin = async function () {
     }
 
     try {
-        // 1. Firebase Auth Login
         if (!window.auth) {
             throw new Error("Firebase Auth belum sedia. Sila refresh.");
         }
 
-        console.log('⏳ Mencuba log masuk Firebase Auth...');
+        // console.log('⏳ Mencuba log masuk Firebase Auth...');
         sessionStorage.setItem('manualLoginInProgress', 'true');
         const userCred = await window.auth.signInWithEmailAndPassword(username, password);
         const user = userCred.user;
         const uid = user.uid;
-        console.log('✅ Auth Berjaya! UID:', uid);
+        // console.log('✅ Auth Berjaya! UID:', uid);
 
-        // Reset login attempts on SUCCESS
         localStorage.removeItem('loginAttempts_' + username);
 
-        // 2. Ambil Data dari Firestore (Gunakan UID as Document ID)
-        console.log('⏳ Mencari profil dakam Firestore (users/' + uid + ')...');
+        // console.log('⏳ Mencari profil dakam Firestore (users/' + uid + ')...');
         if (!window.db) {
             throw new Error("Firestore belum sedia.");
         }
@@ -1264,13 +1191,11 @@ window.handleLogin = async function () {
 
         const userData = snap.data();
 
-        // SEMAK STATUS AKAUN
         if (userData.status === 'Disekat') {
             await window.auth.signOut();
             throw new Error("❌ Akaun anda telah disekat. Sila hubungi pentadbir utama.");
         }
 
-        // 3. Simpan Sesi (Ikut format anda)
         sessionStorage.setItem("loggedIn", "true");
         sessionStorage.setItem("currentUser", JSON.stringify({
             uid,
@@ -1279,7 +1204,6 @@ window.handleLogin = async function () {
             name: userData.name
         }));
 
-        // Simpan untuk kestabilan aplikasi sedia ada
         localStorage.setItem('isLoggedIn', 'true');
         localStorage.setItem('loginType', 'firebase');
         localStorage.setItem('userName', userData.name || username.split('@')[0]);
@@ -1288,7 +1212,6 @@ window.handleLogin = async function () {
 
         alert(`✅ Selamat datang, ${userData.name}`);
 
-        // 4. Transformasi UI (SPA style)
         const pageLogin = document.getElementById('login-page');
         const pageApp = document.getElementById('app');
 
@@ -1310,11 +1233,9 @@ window.handleLogin = async function () {
 
         let errorMsg = "Masalah log masuk. Sila semak kredensial anda.";
 
-        // Handle common Firebase Auth errors
         if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
             errorMsg = "Email tidak dijumpai atau kata laluan salah.";
         } else if (err.code === 'auth/wrong-password') {
-            // Track attempts
             let attempts = parseInt(localStorage.getItem('loginAttempts_' + username) || '0') + 1;
             localStorage.setItem('loginAttempts_' + username, attempts);
 
@@ -1328,7 +1249,6 @@ window.handleLogin = async function () {
         } else if (err.code === 'auth/too-many-requests') {
             errorMsg = "Terlalu banyak percubaan. Sila reset kata laluan atau cuba lagi kemudian.";
         } else if (err.message && err.message.includes("Firestore")) {
-            // This catches the "Data pengguna tidak dijumpai di Firestore" error
             errorMsg = "Akses ditolak. Akaun anda wujud tetapi data profil tidak dijumpai dalam rekod sistem.";
         } else if (err.code === 'permission-denied' || (err.message && err.message.includes("permissions"))) {
             errorMsg = "Akses Firestore ditolak. Sila tetapkan 'Firestore Rules' di Firebase Console kepada 'Allow read/write if auth != null'.";
@@ -1385,41 +1305,35 @@ window.handleResetPassword = async function () {
 };
 
 
-// Allow Enter key to trigger login
 document.getElementById('form-login').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
         e.preventDefault();
         handleLogin();
     }
 });
-// Also handle form submit
 document.getElementById('form-login').addEventListener('submit', (e) => {
     e.preventDefault();
     handleLogin();
 });
-// Extra: also listen for direct button clicks to ensure we catch clicks even if form submit is intercepted elsewhere
 const loginSubmitBtn = document.querySelector('#form-login button[type="submit"]');
 if (loginSubmitBtn) {
     loginSubmitBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        console.log('🔘 Login submit button clicked');
+        // console.log('🔘 Login submit button clicked');
         handleLogin();
     });
 }
 
-// Logout function with confirmation
 function logout() {
-    // Show confirmation modal
     const confirmed = confirm('🚪 Adakah anda pasti mahu log keluar?\n\nSemua data cache akan dibersihkan dan anda perlu log masuk semula.');
 
     if (!confirmed) {
-        console.log('ℹ️ Logout cancelled by user');
+        // console.log('ℹ️ Logout cancelled by user');
         return;
     }
 
-    console.log('🚪 Logout confirmed - clearing all data...');
+    // console.log('🚪 Logout confirmed - clearing all data...');
 
-    // 1. Clear all localStorage (except Google Sheets config and portal settings)
     const sheetsConfig = localStorage.getItem('sheetsConfig');
     const portalBg = localStorage.getItem('portalBgImage');
     const portalBgSize = localStorage.getItem('portalBgSize');
@@ -1428,10 +1342,8 @@ function logout() {
     const portalLogoFit = localStorage.getItem('portalLogoFit');
     const autoLogout = localStorage.getItem('portalAutoLogout');
 
-    // Clear everything
     localStorage.clear();
 
-    // Restore important settings
     if (sheetsConfig) localStorage.setItem('sheetsConfig', sheetsConfig);
     if (portalBg) localStorage.setItem('portalBgImage', portalBg);
     if (portalBgSize) localStorage.setItem('portalBgSize', portalBgSize);
@@ -1440,18 +1352,15 @@ function logout() {
     if (portalLogoFit) localStorage.setItem('portalLogoFit', portalLogoFit);
     if (autoLogout) localStorage.setItem('portalAutoLogout', autoLogout);
 
-    // 2. Clear session storage
     sessionStorage.clear();
 
-    // 3. Reset global variables
     isLoggedIn = false;
     allData = [];
 
-    // 4. Firebase Sign Out (if available)
     if (window.auth && window.firebaseInitialized) {
         window.auth.signOut()
             .then(() => {
-                console.log('✅ Firebase signed out');
+                // console.log('✅ Firebase signed out');
                 performLogoutRedirect();
             })
             .catch((error) => {
@@ -1459,29 +1368,22 @@ function logout() {
                 performLogoutRedirect();
             });
     } else {
-        console.log('ℹ️ Firebase not initialized, skipping Firebase sign-out');
+        // console.log('ℹ️ Firebase not initialized, skipping Firebase sign-out');
         performLogoutRedirect();
     }
 }
 
-// Helper function to perform logout redirect
 function performLogoutRedirect() {
-    // Clear URL hash
     window.location.hash = '';
 
-    // Show toast
     showToast('✅ Anda telah berjaya log keluar', 'success');
 
-    // Force reload to login page after short delay
     setTimeout(() => {
         window.location.href = window.location.origin + window.location.pathname;
     }, 500);
 }
 
-// Login credentials removed for security
-// End of login data
 
-// Helper functions - Show all permohonan data
 function getPermohonan() {
     return allData.filter(d => d.type === 'permohonan');
 }
@@ -1494,7 +1396,6 @@ function getPeralatan() {
     return allData.filter(d => d.type === 'peralatan');
 }
 
-// Page navigation with persistence
 function showPage(page) {
     document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
     document.getElementById(`page-${page}`).classList.remove('hidden');
@@ -1505,30 +1406,25 @@ function showPage(page) {
         }
     });
 
-    // Render permohonan table when showing page
     if (page === 'permohonan') {
         renderPermohonan();
     } else if (page === 'admin') {
         loadAdminData();
     }
 
-    // Save state if logged in
     if (isLoggedIn) {
         localStorage.setItem('lastPage', page);
-        // Only update hash if it's different to avoid loops
         if (window.location.hash !== '#' + page) {
             window.location.hash = page;
         }
     }
 
-    // Close sidebar on mobile after selection
     const sidebar = document.getElementById('sidebar');
     if (window.innerWidth < 768 && sidebar.classList.contains('translate-x-0')) {
         toggleSidebar();
     }
 }
 
-// Handle hash changes (back/forward browser buttons)
 window.addEventListener('hashchange', () => {
     if (!isLoggedIn) return;
     const page = window.location.hash.replace('#', '');
@@ -1538,7 +1434,6 @@ window.addEventListener('hashchange', () => {
     }
 });
 
-// Modal functions with refined background blur
 function openModal(id) {
     console.log('🔓 Opening modal:', id);
     const el = document.getElementById(id);
@@ -1547,7 +1442,6 @@ function openModal(id) {
         return;
     }
     el.classList.remove('hidden');
-    // Blur everything behind
     const app = document.getElementById('app');
     const login = document.getElementById('login-page');
     const globalBg = document.getElementById('global-portal-bg');
@@ -1555,6 +1449,9 @@ function openModal(id) {
     if (app) app.classList.add('modal-blur');
     if (login) login.classList.add('modal-blur');
     if (globalBg) globalBg.classList.add('modal-blur');
+
+    // Prevent body scroll
+    document.body.style.overflow = 'hidden';
 }
 
 function closeModal(id) {
@@ -1563,12 +1460,14 @@ function closeModal(id) {
     const login = document.getElementById('login-page');
     const globalBg = document.getElementById('global-portal-bg');
 
-    // Safety: Only remove blur if no other modals are visible
     const visibleModals = document.querySelectorAll('.fixed[id^=\"modal-\"]:not(.hidden)');
     if (visibleModals.length === 0) {
         if (app) app.classList.remove('modal-blur');
         if (login) login.classList.remove('modal-blur');
         if (globalBg) globalBg.classList.remove('modal-blur');
+
+        // Restore body scroll
+        document.body.style.overflow = 'auto';
     }
 }
 
@@ -1579,7 +1478,6 @@ function showToast(message) {
     setTimeout(() => toast.classList.add('hidden'), 3000);
 }
 
-// Mobile sidebar toggle
 function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebar-overlay');
@@ -1595,7 +1493,6 @@ function toggleSidebar() {
     }
 }
 
-// Dashboard update
 function updateDashboard() {
     const permohonan = getPermohonan();
     const peralatan = getPeralatan();
@@ -1605,7 +1502,6 @@ function updateDashboard() {
     document.getElementById('stat-approved').textContent = permohonan.filter(p => p.status === 'Diluluskan').length;
     document.getElementById('stat-peralatan').textContent = peralatan.length;
 
-    // Recent applications
     const recentContainer = document.getElementById('recent-applications');
     const recent = permohonan.slice(-5).reverse();
 
@@ -1629,7 +1525,6 @@ function updateDashboard() {
     }
 }
 
-// Update notification badge
 let lastNotificationCount = 0;
 function updateNotifications() {
     const permohonan = allData.filter(d => d.type === 'permohonan' && d.status === 'Dalam Proses');
@@ -1644,13 +1539,11 @@ function updateNotifications() {
         countEl.textContent = currentCount;
         badge.classList.remove('hidden');
 
-        // Play notification sound if count increased
         if (currentCount > lastNotificationCount) {
             playNotificationSound();
         }
         lastNotificationCount = currentCount;
 
-        // Add a little bounce animation when count changes
         badge.classList.remove('animate-bounce');
         void badge.offsetWidth; // trigger reflow
         badge.classList.add('animate-bounce');
@@ -1661,7 +1554,6 @@ function updateNotifications() {
     }
 }
 
-// Sound Effects Logic (Digital Synthesis)
 function playSuccessSound() {
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const oscillator = audioCtx.createOscillator();
@@ -1709,11 +1601,9 @@ function getStatusClass(status) {
     }
 }
 
-// Render permohonan table
 function renderPermohonan() {
     const tbody = document.getElementById('permohonan-table');
 
-    // Safety check - if element doesn't exist, skip rendering
     if (!tbody) {
         console.warn('⚠️ renderPermohonan: Element #permohonan-table not found');
         return;
@@ -1721,7 +1611,6 @@ function renderPermohonan() {
 
     let permohonan = getPermohonan();
 
-    // Apply date filter if set
     const startDate = document.getElementById('filter-permohonan-mula')?.value;
     const endDate = document.getElementById('filter-permohonan-akhir')?.value;
 
@@ -1748,7 +1637,6 @@ function renderPermohonan() {
     }
 
     tbody.innerHTML = permohonan.map(p => {
-        // Format items display
         let itemsDisplay = '-';
         if (p.itemsData) {
             try {
@@ -1762,30 +1650,29 @@ function renderPermohonan() {
         }
 
         return `
-        <tr class="hover:bg-slate-50">
-          <!-- No Rujukan Column -->
-          <td class="px-6 py-4 text-indigo-900 font-mono text-xs font-bold">${p.noPermohonan || '-'}</td>
+        <tr class="hover:bg-slate-50 transition-colors">
+          <td class="px-6 py-4 text-indigo-900 font-mono text-xs font-bold" data-label="No. Rujukan">${p.noPermohonan || '-'}</td>
           
-          <td class="px-6 py-4">
+          <td class="px-6 py-4" data-label="Pemohon">
             <div class="flex items-center gap-3">
               <div class="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-semibold text-sm">
                 ${p.nama ? p.nama.charAt(0).toUpperCase() : 'U'}
               </div>
-              <span class="font-medium text-slate-800">${p.nama || '-'}</span>
+              <span class="font-medium text-slate-800 text-right w-full md:w-auto">${p.nama || '-'}</span>
             </div>
           </td>
-          <td class="px-6 py-4 text-slate-600 text-sm">${p.email || '-'}</td>
-          <td class="px-6 py-4 text-slate-600 text-sm">${p.nomorTelefon || '-'}</td>
-          <td class="px-6 py-4 text-slate-600 text-sm">${p.cawangan || '-'}</td>
-          <td class="px-6 py-4 text-slate-600 text-sm font-semibold">${p.jenisPermohonan || '-'}</td>
-          <td class="px-6 py-4 text-slate-600 text-sm">
+          <td class="px-6 py-4 text-slate-600 text-sm" data-label="Email">${p.email || '-'}</td>
+          <td class="px-6 py-4 text-slate-600 text-sm" data-label="No. Telefon">${p.nomorTelefon || '-'}</td>
+          <td class="px-6 py-4 text-slate-600 text-sm" data-label="Cawangan">${p.cawangan || '-'}</td>
+          <td class="px-6 py-4 text-slate-600 text-sm font-semibold" data-label="Jenis">${p.jenisPermohonan || '-'}</td>
+          <td class="px-6 py-4 text-slate-600 text-sm" data-label="Item">
             <div class="whitespace-pre-wrap">${itemsDisplay}</div>
           </td>
-          <td class="px-6 py-4 text-slate-600 text-sm">${formatDate(p.tarikhMulaPinjam)}</td>
-          <td class="px-6 py-4 text-slate-600 text-sm">${formatDate(p.tarikhPulang)}</td>
-          <td class="px-6 py-4"><span class="status-badge ${getStatusClass(p.status)}">${p.status || 'Dalam Proses'}</span></td>
-          <td class="px-6 py-4">
-            <div class="flex gap-2 flex-wrap">
+          <td class="px-6 py-4 text-slate-600 text-sm" data-label="Mula">${formatDate(p.tarikhMulaPinjam)}</td>
+          <td class="px-6 py-4 text-slate-600 text-sm" data-label="Pulang">${formatDate(p.tarikhPulang)}</td>
+          <td class="px-6 py-4" data-label="Status"><span><span class="status-badge ${getStatusClass(p.status)}">${p.status || 'Dalam Proses'}</span></span></td>
+          <td class="px-6 py-4" data-label="Tindakan">
+            <div class="flex gap-2 flex-wrap justify-center lg:justify-start lg:ml-auto">
               ${p.status === 'Selesai' ? '<span class="text-green-600 text-sm font-medium">✓ Selesai</span>' : `<button onclick="quickMarkCompleted('${p.__backendId}')" class="text-green-600 hover:text-green-800 text-sm font-medium" title="Tandai Selesai">✓ Selesai</button>`}
               <button onclick="openTindakan('${p.__backendId}')" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">Urus</button>
               <button onclick="openDeleteModal('${p.__backendId}', 'permohonan')" class="text-red-600 hover:text-red-800 text-sm font-medium">Padam</button>
@@ -1795,12 +1682,10 @@ function renderPermohonan() {
             `}).join('');
 }
 
-// Apply permohonan date filter
 function applyPermohonanFilter() {
     renderPermohonan();
 }
 
-// Reset permohonan date filter
 function resetPermohonanFilter() {
     document.getElementById('filter-permohonan-mula').value = '';
     document.getElementById('filter-permohonan-akhir').value = '';
@@ -1808,26 +1693,21 @@ function resetPermohonanFilter() {
     renderPermohonan();
 }
 
-// Update date constraints for permohonan filter
 function updatePermohonanDateConstraints() {
     const startDateInput = document.getElementById('filter-permohonan-mula');
     const endDateInput = document.getElementById('filter-permohonan-akhir');
 
     if (startDateInput.value) {
-        // Set minimum date for end date to be the start date
         endDateInput.min = startDateInput.value;
 
-        // If end date is already set and is before start date, clear it
         if (endDateInput.value && endDateInput.value < startDateInput.value) {
             endDateInput.value = '';
         }
     } else {
-        // Remove minimum constraint if start date is cleared
         endDateInput.removeAttribute('min');
     }
 }
 
-// Update date constraints for admin form (Tambah Permohonan)
 function updateAdminDateConstraints() {
     const startInput = document.getElementById('tarikh-mula');
     const endInput = document.getElementById('tarikh-pulang');
@@ -1844,7 +1724,6 @@ function updateAdminDateConstraints() {
     }
 }
 
-// Update date constraints for user form (Borang Permohonan Peminjaman)
 function updateUserDateConstraints() {
     const startInput = document.getElementById('user-tarikh-mula');
     const endInput = document.getElementById('user-tarikh-pulang');
@@ -1869,13 +1748,10 @@ function formatDate(dateStr) {
     return date.toLocaleString('ms-MY', { dateStyle: 'short', timeStyle: 'short' });
 }
 
-// --- Admin management moved to Firebase section ---
 
-// Render kategori
 function renderKategori() {
     const container = document.getElementById('kategori-list');
 
-    // Safety check - if element doesn't exist, skip rendering
     if (!container) {
         console.warn('⚠️ renderKategori: Element #kategori-list not found');
         return;
@@ -1931,7 +1807,6 @@ function renderKategori() {
     container.innerHTML = html;
 }
 
-// Render peralatan
 function openEditKategori(id) {
     const targetId = String(id).trim();
     const data = allData.find(d => d.__backendId && String(d.__backendId).trim() === targetId);
@@ -1943,7 +1818,6 @@ function openEditKategori(id) {
     document.getElementById('kategori-id').value = targetId;
     document.getElementById('nama-kategori').value = data.namaKategori || data.nama || '';
 
-    // Update modal UI
     const modal = document.getElementById('modal-kategori');
     if (modal) {
         modal.querySelector('h3').textContent = 'Edit Kategori';
@@ -1959,7 +1833,6 @@ function openAddPeralatan() {
 
     document.getElementById('peralatan-id').value = '';
 
-    // Update modal UI
     const modal = document.getElementById('modal-peralatan');
     if (modal) {
         modal.querySelector('h3').textContent = 'Tambah Peralatan';
@@ -1975,7 +1848,6 @@ function openAddKategori() {
 
     document.getElementById('kategori-id').value = '';
 
-    // Update modal UI
     const modal = document.getElementById('modal-kategori');
     if (modal) {
         modal.querySelector('h3').textContent = 'Tambah Kategori';
@@ -1998,11 +1870,9 @@ function openEditPeralatan(id) {
     document.getElementById('nama-peralatan').value = data.namaPeralatan || '';
     document.getElementById('kuantiti-peralatan').value = data.kuantiti || 0;
 
-    // Reset transaction fields
     document.getElementById('tambah-baru').value = 0;
     document.getElementById('item-rosak').value = 0;
 
-    // Update modal UI
     const modal = document.getElementById('modal-peralatan');
     if (modal) {
         modal.querySelector('h3').textContent = 'Edit Peralatan';
@@ -2015,7 +1885,6 @@ function openEditPeralatan(id) {
 function renderPeralatan() {
     const container = document.getElementById('peralatan-list');
 
-    // Safety check - if element doesn't exist, skip rendering
     if (!container) {
         console.warn('⚠️ renderPeralatan: Element #peralatan-list not found');
         return;
@@ -2047,7 +1916,6 @@ function renderPeralatan() {
         const kat = kategori.find(k => String(k.__backendId) === String(p.kategori));
         const bakiSekarang = getAvailableStock(p.__backendId);
         const statusColor = bakiSekarang > 0 ? 'text-green-600' : 'text-red-600';
-        // Calculate totals from logs (for potential future use)
         const logs = allData.filter(d => d.type === 'log_stok' && String(d.peralatanId) === String(p.__backendId));
         const calcBaru = logs
             .filter(l => ['Tambah Stok', 'Item Baru'].includes(l.jenisPerubahan))
@@ -2094,7 +1962,6 @@ function renderPeralatan() {
     container.innerHTML = html;
 }
 
-// Update dropdowns
 function updateItemDropdown() {
     const container = document.getElementById('item-dipinjam-container');
     if (!container) {
@@ -2102,7 +1969,6 @@ function updateItemDropdown() {
         return;
     }
 
-    // Save currently checked items and their quantities
     const checkedItems = {};
     container.querySelectorAll('input.item-checkbox:checked').forEach(cb => {
         const id = cb.dataset.id;
@@ -2126,8 +1992,6 @@ function updateItemDropdown() {
         const isAvailable = tersedia > 0;
         const wasChecked = checkedItems[p.__backendId] !== undefined;
 
-        // If item was checked, its quantity should be added to available stock for validation purposes
-        // This allows the user to keep their selection even if the available stock changes slightly
         const maxQtyForValidation = tersedia + (wasChecked ? parseInt(checkedItems[p.__backendId]) : 0);
 
         return `
@@ -2210,7 +2074,6 @@ function updateSelectedItems() {
     document.getElementById('item-dipinjam-hidden').value = selectedItems.join(', ');
     document.getElementById('items-data-hidden').value = JSON.stringify(itemsData);
 
-    // Check date overlap when items change
     checkDateOverlap();
 }
 
@@ -2219,7 +2082,6 @@ function refreshAdminInventoryDisplay() {
     checkDateOverlap();
 }
 
-// Check Date Overlap (Admin)
 function checkDateOverlap() {
     const tarikhMula = document.getElementById('tarikh-mula').value;
     const tarikhPulang = document.getElementById('tarikh-pulang').value;
@@ -2243,7 +2105,6 @@ function checkDateOverlap() {
     let hasConflict = false;
     let conflictMessages = [];
 
-    // Check Dewan availability
     if (hasDewan) {
         const dewanPermohonan = allData.filter(d =>
             d.type === 'permohonan' && d.jenisPermohonan && d.jenisPermohonan.includes('Dewan')
@@ -2255,12 +2116,10 @@ function checkDateOverlap() {
             const existingStart = new Date(permohonan.tarikhMulaPinjam);
             const existingEnd = new Date(permohonan.tarikhPulang);
 
-            // Calculate end of existing booking day (next day midnight)
             const existingEndMidnight = new Date(existingEnd);
             existingEndMidnight.setDate(existingEndMidnight.getDate() + 1);
             existingEndMidnight.setHours(0, 0, 0, 0);
 
-            // New booking start should be on or after existing booking end midnight
             if (startDate < existingEndMidnight && endDate > existingStart) {
                 hasConflict = true;
                 conflictMessages.push(`Dewan telah ditempah pada ${formatDate(permohonan.tarikhMulaPinjam)} - ${formatDate(permohonan.tarikhPulang)}. Sila pilih tarikh lain.`);
@@ -2269,7 +2128,6 @@ function checkDateOverlap() {
         }
     }
 
-    // Check Peralatan availability using central utility
     if (hasPeralatan && !hasConflict) {
         const selectedItemsData = document.getElementById('items-data-hidden').value;
         if (selectedItemsData) {
@@ -2298,7 +2156,6 @@ function checkDateOverlap() {
     }
 }
 
-// User Form Date Overlap & Availability Check
 function checkUserDateOverlap() {
     const tarikhMula = document.getElementById('user-tarikh-mula').value;
     const tarikhPulang = document.getElementById('user-tarikh-pulang').value;
@@ -2309,7 +2166,6 @@ function checkUserDateOverlap() {
     const errorMessage = document.getElementById('user-date-overlap-message');
     const submitBtn = document.getElementById('btn-submit-user-permohonan');
 
-    // Update item list based on new potential dates
     if (selections.includes('Peralatan')) {
         updateUserItemDropdown();
     }
@@ -2333,7 +2189,6 @@ function checkUserDateOverlap() {
     let hasConflict = false;
     let conflictMessages = [];
 
-    // 1. Check Dewan Conflicts
     if (selections.includes('Dewan')) {
         const matchingPermohonan = allData.filter(d =>
             d.type === 'permohonan' &&
@@ -2346,12 +2201,10 @@ function checkUserDateOverlap() {
             const existingStart = new Date(p.tarikhMulaPinjam);
             const existingEnd = new Date(p.tarikhPulang);
 
-            // Calculate end of existing booking day (next day midnight)
             const existingEndMidnight = new Date(existingEnd);
             existingEndMidnight.setDate(existingEndMidnight.getDate() + 1);
             existingEndMidnight.setHours(0, 0, 0, 0);
 
-            // New booking start should be on or after existing booking end midnight
             if (startDate < existingEndMidnight && endDate > existingStart) {
                 hasConflict = true;
                 conflictMessages.push(`🏛️ Dewan telah ditempah pada ${formatDate(p.tarikhMulaPinjam)} - ${formatDate(p.tarikhPulang)}. Sila pilih tarikh / waktu lain.`);
@@ -2360,7 +2213,6 @@ function checkUserDateOverlap() {
         }
     }
 
-    // 2. Check Peralatan Conflicts
     const itemsDataStr = document.getElementById('user-items-data-hidden').value;
     if (selections.includes('Peralatan') && itemsDataStr) {
         try {
@@ -2368,7 +2220,6 @@ function checkUserDateOverlap() {
             for (const item of selectedItems) {
                 const totalStock = allData.find(d => d.type === 'peralatan' && d.__backendId === item.id)?.kuantiti || 0;
 
-                // Calculate how many in use during this period
                 let unitsInUse = 0;
                 const relevantRequests = allData.filter(d =>
                     d.type === 'permohonan' &&
@@ -2380,12 +2231,10 @@ function checkUserDateOverlap() {
                     const reqStart = new Date(req.tarikhMulaPinjam);
                     const reqEnd = new Date(req.tarikhPulang);
 
-                    // Calculate end of existing booking day (next day midnight)
                     const reqEndMidnight = new Date(reqEnd);
                     reqEndMidnight.setDate(reqEndMidnight.getDate() + 1);
                     reqEndMidnight.setHours(0, 0, 0, 0);
 
-                    // Check overlap: new start < existing end midnight AND new end > existing start
                     if (startDate < reqEndMidnight && endDate > reqStart) {
                         const reqItems = JSON.parse(req.itemsData);
                         const match = reqItems.find(i => i.id === item.id);
@@ -2401,7 +2250,6 @@ function checkUserDateOverlap() {
         } catch (e) { console.error(e); }
     }
 
-    // Check for individual item quantity errors
     const qtyErrors = document.querySelectorAll('[id^="user-qty-error-"]:not(.hidden)');
     if (qtyErrors.length > 0) hasConflict = true;
 
@@ -2419,7 +2267,6 @@ function checkUserDateOverlap() {
 function updateKategoriDropdown() {
     const select = document.getElementById('kategori-peralatan');
 
-    // Safety check - if element doesn't exist, skip
     if (!select) {
         console.warn('⚠️ updateKategoriDropdown: Element #kategori-peralatan not found');
         return;
@@ -2435,7 +2282,6 @@ function updateUserItemDropdown() {
     const container = document.getElementById('user-item-dipinjam-container');
     if (!container) return;
 
-    // Save currently checked items and their quantities
     const checkedItems = {};
     container.querySelectorAll('input.user-item-checkbox:checked').forEach(cb => {
         const id = cb.dataset.id;
@@ -2525,21 +2371,17 @@ function validateUserQty(id, max) {
     updateUserSelectedItems();
 }
 
-// User form functions
 function closeUserForm() {
     const urlParams = new URLSearchParams(window.location.search);
     const isUserMode = urlParams.get('user') === 'true' || window.location.hash.includes('user=true');
 
     if (isUserMode) {
-        // Attempt to close the tab
         window.close();
-        // Fallback message if browser blocks window.close()
         setTimeout(() => {
             alert("Sila tutup tab ini secara manual.");
         }, 100);
     } else {
         closeModal('modal-user-form');
-        // Ensure form is visible for next time (even if it was closed from success screen)
         setTimeout(() => {
             document.getElementById('form-user-permohonan').classList.remove('hidden');
             document.getElementById('user-success-container').classList.add('hidden');
@@ -2548,11 +2390,9 @@ function closeUserForm() {
 }
 
 function resetUserFormForNew() {
-    // Hide success, show form
     document.getElementById('user-success-container').classList.add('hidden');
     document.getElementById('form-user-permohonan').classList.remove('hidden');
 
-    // Clear everything
     document.getElementById('form-user-permohonan').reset();
     document.querySelectorAll('.user-jenis-btn').forEach(b => {
         b.classList.remove('border-purple-600', 'bg-purple-50');
@@ -2575,7 +2415,6 @@ function selectUserJenisPermohonan(value, button) {
 
     const selectedButtons = document.querySelectorAll('.user-jenis-btn.border-purple-600');
     const selectedValues = Array.from(selectedButtons).map(btn => {
-        // Target the specific title element (p.font-semibold) to get the correct value
         const titleEl = btn.querySelector('p.font-semibold');
         return titleEl ? titleEl.textContent.trim() : btn.textContent.trim();
     });
@@ -2594,20 +2433,17 @@ function toggleUserPermohonanFields() {
     const hasPeralatan = selections.includes('Peralatan');
     const hasDewan = selections.includes('Dewan');
 
-    // Show/hide Peralatan fields (HANYA muncul jika user pilih Peralatan)
     if (hasPeralatan) {
         fieldSenariItem.classList.remove('hidden');
         document.getElementById('user-item-dipinjam-hidden').setAttribute('required', 'required');
     } else {
         fieldSenariItem.classList.add('hidden');
         document.getElementById('user-item-dipinjam-hidden').removeAttribute('required');
-        // Clear selected items (checkboxes only now)
         document.querySelectorAll('.user-item-checkbox').forEach(cb => cb.checked = false);
         document.getElementById('user-item-dipinjam-hidden').value = '';
         document.getElementById('user-items-data-hidden').value = '';
     }
 
-    // Toggle Terma & Syarat sections
     const termaDewan = document.getElementById('user-terma-dewan');
     const termaPeralatan = document.getElementById('user-terma-peralatan');
 
@@ -2625,7 +2461,6 @@ function toggleUserPermohonanFields() {
         document.getElementById('user-terma-peralatan-tick').checked = false;
     }
 
-    // Update section numbers dynamically
     let sectionNumber = 3;
     if (hasPeralatan) {
         sectionNumber = 4;
@@ -2651,7 +2486,6 @@ function checkUserTerms() {
 
     let allChecked = true;
 
-    // Check Dewan terma
     if (hasDewan) {
         const dewanTick = document.getElementById('user-terma-dewan-tick');
         if (!dewanTick || !dewanTick.checked) {
@@ -2659,7 +2493,6 @@ function checkUserTerms() {
         }
     }
 
-    // Check Peralatan terma
     if (hasPeralatan) {
         const peralatanTick = document.getElementById('user-terma-peralatan-tick');
         if (!peralatanTick || !peralatanTick.checked) {
@@ -2667,7 +2500,6 @@ function checkUserTerms() {
         }
     }
 
-    // Check General terma (WAJIB untuk semua)
     const syaratTick = document.getElementById('user-terma-syarat-tick');
     if (!syaratTick || !syaratTick.checked) {
         allChecked = false;
@@ -2806,10 +2638,8 @@ function checkUserDateOverlap() {
     }
 }
 
-// Sharelink functions
 function showSharelinkInfo() {
     console.log('🔗 showSharelinkInfo called');
-    // Current URL minus anything from ? or # onwards
     const currentURL = window.location.origin + window.location.pathname;
     const sharelinkURL = `${currentURL}?user=true`;
     console.log('🔗 Generated Link:', sharelinkURL);
@@ -2834,7 +2664,6 @@ function copySharelink() {
         navigator.clipboard.writeText(input.value).then(() => {
             showToast('Link berjaya disalin!');
         }).catch(() => {
-            // Fallback for older browsers
             document.execCommand('copy');
             showToast('Link berjaya disalin!');
         });
@@ -2843,11 +2672,7 @@ function copySharelink() {
     }
 }
 
-// Check if user came from sharelink
-// Redundant DOMContentLoaded listener removed - initialization logic is handled at the top of the file
-// See line ~947 window.addEventListener('DOMContentLoaded', ...)
 
-// Admin Form Selection Handlers
 function selectJenisPermohonan(value, button) {
     const isActive = button.classList.contains('border-indigo-600');
 
@@ -2878,14 +2703,12 @@ function togglePermohonanFields() {
     const hasPeralatan = selections.includes('Peralatan');
     const hasDewan = selections.includes('Dewan');
 
-    // Show/hide Peralatan fields
     if (hasPeralatan && fieldSenariItem) {
         fieldSenariItem.classList.remove('hidden');
     } else if (fieldSenariItem) {
         fieldSenariItem.classList.add('hidden');
     }
 
-    // Toggle Terma & Syarat sections
     const termaDewan = document.getElementById('admin-terma-dewan');
     const termaPeralatan = document.getElementById('admin-terma-peralatan');
 
@@ -2909,7 +2732,6 @@ function togglePermohonanFields() {
         }
     }
 
-    // Trigger validation
     if (typeof checkAdminTerms === 'function') checkAdminTerms();
     if (typeof checkDateOverlap === 'function') checkDateOverlap();
 }
@@ -2923,7 +2745,6 @@ function checkAdminTerms() {
 
     let allChecked = true;
 
-    // Check Dewan terma
     if (hasDewan) {
         const dewanTick = document.getElementById('admin-terma-dewan-tick');
         if (!dewanTick.checked) {
@@ -2931,7 +2752,6 @@ function checkAdminTerms() {
         }
     }
 
-    // Check Peralatan terma
     if (hasPeralatan) {
         const peralatanTick = document.getElementById('admin-terma-peralatan-tick');
         if (!peralatanTick.checked) {
@@ -2939,7 +2759,6 @@ function checkAdminTerms() {
         }
     }
 
-    // Check General terma (WAJIB untuk semua)
     const syaratTick = document.getElementById('admin-terma-syarat-tick');
     if (!syaratTick.checked) {
         allChecked = false;
@@ -2963,7 +2782,6 @@ function checkAdminTerms() {
     }
 }
 
-// --- OPEN TINDAKAN (Admin Urus Permohonan) ---
 function openTindakan(id) {
     const permohonan = allData.find(d => String(d.__backendId) === String(id));
     if (!permohonan) {
@@ -2979,17 +2797,14 @@ function openTindakan(id) {
     document.getElementById('detail-jenis').textContent = permohonan.jenisPermohonan;
     document.getElementById('detail-items').textContent = permohonan.items;
 
-    // Format dates for display
     document.getElementById('detail-tarikh-mula').textContent = formatDate(permohonan.tarikhMulaPinjam);
     document.getElementById('detail-tarikh-tamat').textContent = formatDate(permohonan.tarikhPulang);
 
     document.getElementById('detail-tujuan').textContent = permohonan.tujuan;
 
-    // Set current status
     document.getElementById('status-permohonan').value = permohonan.status || 'Dalam Proses';
     document.getElementById('catatan-admin').value = permohonan.catatan || '';
 
-    // Populate editable date fields (convert ISO to datetime-local format)
     const formatForInput = (isoDate) => {
         if (!isoDate) return '';
         const d = new Date(isoDate);
@@ -3004,10 +2819,8 @@ function openTindakan(id) {
     document.getElementById('edit-tarikh-mula').value = formatForInput(permohonan.tarikhMulaPinjam);
     document.getElementById('edit-tarikh-tamat').value = formatForInput(permohonan.tarikhPulang);
 
-    // Set tarikh selesai if already recorded
     document.getElementById('tarikh-selesai').value = permohonan.tarikhSelesai ? formatDate(permohonan.tarikhSelesai) : '';
 
-    // Hide/Show button Selesai based on status
     const btnSelesai = document.getElementById('btn-mark-selesai');
     if (permohonan.status === 'Selesai' || permohonan.statusSelesai === true) {
         btnSelesai.classList.add('hidden');
@@ -3015,30 +2828,26 @@ function openTindakan(id) {
         btnSelesai.classList.remove('hidden');
     }
 
-    // Populate items edit section if permohonan includes Peralatan
     const jenisNormalized = (permohonan.jenisPermohonan || '').trim().toLowerCase();
-    console.log('🔍 openTindakan - Jenis Permohonan:', permohonan.jenisPermohonan, '| Normalized:', jenisNormalized);
+    // console.log('🔍 openTindakan - Jenis Permohonan:', permohonan.jenisPermohonan, '| Normalized:', jenisNormalized);
 
-    // Reset checkboxes and hide edit sections by default
     document.getElementById('toggle-edit-dates').checked = false;
     document.getElementById('date-edit-section').classList.add('hidden');
 
-    // Check if jenisPermohonan contains 'peralatan' (handles both "Peralatan" and "Dewan, Peralatan")
     if (jenisNormalized.includes('peralatan')) {
-        console.log('✅ Showing items edit section (contains Peralatan)');
+        // console.log('✅ Showing items edit section (contains Peralatan)');
         document.getElementById('items-edit-section').classList.remove('hidden');
         document.getElementById('toggle-edit-items').checked = false;
         document.getElementById('items-edit-container-wrapper').classList.add('hidden');
         populateItemsEditContainer(permohonan);
     } else {
-        console.log('❌ Hiding items edit section (does not contain Peralatan)');
+        // console.log('❌ Hiding items edit section (does not contain Peralatan)');
         document.getElementById('items-edit-section').classList.add('hidden');
     }
 
     openModal('modal-tindakan');
 }
 
-// Populate items edit container with checkboxes
 function populateItemsEditContainer(permohonan) {
     const container = document.getElementById('items-edit-container');
     const peralatan = getPeralatan();
@@ -3048,7 +2857,6 @@ function populateItemsEditContainer(permohonan) {
         return;
     }
 
-    // Parse existing items
     let selectedItems = [];
     if (permohonan.itemsData) {
         try {
@@ -3062,7 +2870,6 @@ function populateItemsEditContainer(permohonan) {
         const selected = selectedItems.find(item => String(item.id) === String(p.__backendId));
         const qty = selected ? (parseInt(selected.qty) || 0) : 0;
 
-        // Calculate availability excluding current request items
         const bakiTersedia = getAvailableStock(p.__backendId, permohonan.tarikhMulaPinjam, permohonan.tarikhPulang, permohonan.__backendId);
         const isAvailable = bakiTersedia > 0;
 
@@ -3089,7 +2896,6 @@ function populateItemsEditContainer(permohonan) {
     `;
     }).join('');
 
-    // Re-attach event listeners
     document.querySelectorAll('.item-tindakan-checkbox').forEach(checkbox => {
         checkbox.addEventListener('change', function () {
             const id = this.id.replace('item-tindakan-', '');
@@ -3101,7 +2907,6 @@ function populateItemsEditContainer(permohonan) {
     });
 }
 
-// Collect selected items from the tindakan modal
 function collectTindakanItems() {
     const selected = [];
     document.querySelectorAll('.item-tindakan-checkbox:checked').forEach(checkbox => {
@@ -3114,7 +2919,6 @@ function collectTindakanItems() {
     return selected;
 }
 
-// Mark permohonan as completed with timestamp
 function markAsCompleted() {
     const id = document.getElementById('tindakan-id').value;
     const data = allData.find(d => String(d.__backendId) === String(id));
@@ -3124,7 +2928,6 @@ function markAsCompleted() {
         return;
     }
 
-    // Record completion timestamp and mark statusSelesai only if not already recorded
     if (!data.statusSelesai) {
         data.statusSelesai = true;
         data.tarikhSelesai = new Date().toISOString();
@@ -3135,12 +2938,10 @@ function markAsCompleted() {
         showToast('⚠️ Tarikh selesai sudah direkodkan sebelumnya');
     }
 
-    // Update the display field
     document.getElementById('tarikh-selesai').value = formatDate(data.tarikhSelesai);
     document.getElementById('status-permohonan').value = 'Selesai';
 }
 
-// Quick mark as completed from table
 function quickMarkCompleted(id) {
     const data = allData.find(d => String(d.__backendId) === String(id));
 
@@ -3149,7 +2950,6 @@ function quickMarkCompleted(id) {
         return;
     }
 
-    // Record completion timestamp and mark statusSelesai
     if (!data.statusSelesai) {
         data.statusSelesai = true;
         data.tarikhSelesai = new Date().toISOString();
@@ -3163,14 +2963,12 @@ function quickMarkCompleted(id) {
     }
 }
 
-// Handle Tindakan Submit
 document.getElementById('form-tindakan').addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = document.getElementById('tindakan-id').value;
     const status = document.getElementById('status-permohonan').value;
     const catatan = document.getElementById('catatan-admin').value;
 
-    // Get updated dates from input fields
     const newTarikhMula = document.getElementById('edit-tarikh-mula').value;
     const newTarikhTamat = document.getElementById('edit-tarikh-tamat').value;
 
@@ -3183,28 +2981,29 @@ document.getElementById('form-tindakan').addEventListener('submit', async (e) =>
             tarikhPulang: newTarikhTamat ? new Date(newTarikhTamat).toISOString() : data.tarikhPulang
         };
 
-        // Update items Data ALWAYS (even if empty) to allow reduction to 0 items
-        if (data.jenisPermohonan === 'Peralatan') {
+        // Check if normalized type includes pperalatan
+        const typeNormalized = (data.jenisPermohonan || '').toLowerCase();
+        if (typeNormalized.includes('peralatan')) {
             const selectedItems = collectTindakanItems();
+            // console.log('📦 Updating Admin Items:', selectedItems);
+
             updates.itemsData = JSON.stringify(selectedItems);
             updates.items = selectedItems.length > 0
                 ? selectedItems.map(item => `${item.name} (${item.qty} unit)`).join(', ')
                 : 'Tiada item';
         }
 
-        // If status is set to "Selesai", mark statusSelesai as true and record completion time
         if (status === 'Selesai' && !data.statusSelesai) {
             updates.statusSelesai = true;
             updates.tarikhSelesai = new Date().toISOString();
         }
 
-        // Use DataStore.update to ensure sync
+        // console.log('🚀 Submitting Admin Updates:', updates);
         await DataStore.update(id, updates);
 
         showToast('✅ Berjaya dikemaskini!');
         closeModal('modal-tindakan');
 
-        // Refresh UI
         updateDashboard();
         renderPermohonan();
         renderLaporan(); // Update reports
@@ -3214,14 +3013,12 @@ document.getElementById('form-tindakan').addEventListener('submit', async (e) =>
 });
 
 
-// --- DELETE LOGIC ---
 function openDeleteModal(id, type) {
     document.getElementById('delete-id').value = id;
     document.getElementById('delete-type').value = type;
     openModal('modal-delete');
 }
 
-// Data Persistence & Storage
 
 
 function confirmDelete() {
@@ -3229,7 +3026,6 @@ function confirmDelete() {
     const type = document.getElementById('delete-type').value;
     let deletedItemName = '';
 
-    // Get name before deletion for logging
     if (type === 'peralatan') {
         const item = allData.find(d => String(d.__backendId) === String(id));
         if (item) deletedItemName = item.namaPeralatan;
@@ -3239,7 +3035,6 @@ function confirmDelete() {
         showToast('Item berjaya dipadam');
         closeModal('modal-delete');
 
-        // Log Deletion for Stock History
         if (type === 'peralatan' && deletedItemName) {
             await DataStore.add({
                 type: 'log_stok',
@@ -3252,7 +3047,6 @@ function confirmDelete() {
             });
         }
 
-        // Refresh related UIs
         if (type === 'permohonan') {
             updateDashboard();
             renderPermohonan();
@@ -3272,7 +3066,6 @@ function confirmDelete() {
 
 
 
-// --- LAPORAN & REPORTING ---
 function renderLaporan() {
     try {
         const toolbar = document.getElementById('editor-toolbar');
@@ -3347,7 +3140,6 @@ function renderLaporan() {
             }
         });
 
-        // For Charts and Summaries
         const sortedUsage = Object.entries(itemUsage)
             .map(([name, data]) => [name, data.qty])
             .sort((a, b) => b[1] - a[1]);
@@ -3409,7 +3201,6 @@ function renderLaporanPeralatanTable(usageData) {
         return;
     }
 
-    // Filter duplicates
     const seen = new Set();
     const unique = peralatan.filter(p => {
         const key = p.namaPeralatan.toLowerCase().trim();
@@ -3418,7 +3209,6 @@ function renderLaporanPeralatanTable(usageData) {
         return true;
     });
 
-    // Update Headers for 7 columns
     const thead = tbody.closest('table').querySelector('thead');
     if (thead) {
         thead.innerHTML = `
@@ -3441,7 +3231,6 @@ function renderLaporanPeralatanTable(usageData) {
         const baki = Math.max(0, total - usageCount);
         const hasStock = baki > 0;
 
-        // Calculate totals from logs (same logic as in renderPeralatan)
         const logs = allData.filter(d => d.type === 'log_stok' && String(d.peralatanId) === String(p.__backendId));
         const calcBaru = logs
             .filter(l => ['Tambah Stok', 'Item Baru'].includes(l.jenisPerubahan))
@@ -3450,7 +3239,6 @@ function renderLaporanPeralatanTable(usageData) {
             .filter(l => l.jenisPerubahan === 'Lapor Rosak')
             .reduce((sum, l) => sum + (parseInt(l.kuantiti) || 0), 0);
 
-        // Get latest timestamps from logs
         const logsBaru = logs.filter(l => ['Tambah Stok', 'Item Baru'].includes(l.jenisPerubahan));
         const logsRosak = logs.filter(l => l.jenisPerubahan === 'Lapor Rosak');
         const latestBaru = logsBaru.length > 0 ? logsBaru.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0].timestamp : null;
@@ -3463,27 +3251,27 @@ function renderLaporanPeralatanTable(usageData) {
 
         return `
             <tr class="hover:bg-slate-50 transition-colors border-b border-slate-100">
-                <td class="px-4 py-4">
+                <td class="px-4 py-4" data-label="Peralatan">
                     <p class="font-bold text-slate-800 text-xs">${p.namaPeralatan}</p>
                 </td>
-                <td class="px-4 py-4 text-left">
-                    <span class="text-green-600 font-bold">${calcBaru}</span>${dateBaru}
+                <td class="px-4 py-4 text-left" data-label="Baru (+)">
+                    <span><span class="text-green-600 font-bold">${calcBaru}</span>${dateBaru}</span>
                 </td>
-                <td class="px-4 py-4 text-left">
-                    <span class="text-red-500 font-bold">${calcRosak}</span>${dateRosak}
+                <td class="px-4 py-4 text-left" data-label="Rosak (-)">
+                    <span><span class="text-red-500 font-bold">${calcRosak}</span>${dateRosak}</span>
                 </td>
-                <td class="px-4 py-4 text-left">
-                    <span class="text-slate-800 font-black">${total}</span>${dateJumlah}
+                <td class="px-4 py-4 text-left" data-label="Jumlah">
+                    <span><span class="text-slate-800 font-black">${total}</span>${dateJumlah}</span>
                 </td>
-                <td class="px-4 py-4 text-left">
-                    <span class="text-indigo-600 font-bold">${usageCount}</span>${dateLatestUse}
+                <td class="px-4 py-4 text-left" data-label="Diguna">
+                    <span><span class="text-indigo-600 font-bold">${usageCount}</span>${dateLatestUse}</span>
                 </td>
-                <td class="px-4 py-4 text-left">
+                <td class="px-4 py-4 text-left" data-label="Baki">
                     <span class="font-bold border-b-2 ${hasStock ? 'border-green-400 text-green-700' : 'border-red-400 text-red-700'}">${baki}</span>
                 </td>
-                <td class="px-4 py-4 text-left">
+                <td class="px-4 py-4 text-left" data-label="Status">
                     <span class="status-badge ${hasStock ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}">
-                        ${hasStock ? 'Sedia Digunakan' : 'Habis'}
+                        ${hasStock ? 'Sedia' : 'Habis'}
                     </span>
                 </td>
             </tr>
@@ -3491,7 +3279,6 @@ function renderLaporanPeralatanTable(usageData) {
     }).join('');
 }
 
-// Toggle Report Section Visibility
 window.toggleReportSection = function (sectionId) {
     const section = document.getElementById(sectionId);
     if (section) {
@@ -3503,12 +3290,10 @@ window.toggleReportSection = function (sectionId) {
     }
 };
 
-// Render Log Transaksi Stok
 function renderLogStok() {
     const tbody = document.getElementById('laporan-log-table');
     if (!tbody) return;
 
-    // Get log data
     const logs = allData.filter(d => d.type === 'log_stok').sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
     if (logs.length === 0) {
@@ -3532,17 +3317,17 @@ function renderLogStok() {
 
         return `
             <tr class="hover:bg-slate-50 transition-colors border-b border-slate-100">
-                <td class="px-4 py-3 text-xs text-slate-600 font-medium whitespace-nowrap">${date}</td>
-                <td class="px-4 py-3 text-xs text-slate-800 font-bold">${log.namaPeralatan || '-'}</td>
-                <td class="px-4 py-3 text-left">
+                <td class="px-4 py-3 text-xs text-slate-600 font-medium whitespace-nowrap" data-label="Tarikh">${date}</td>
+                <td class="px-4 py-3 text-xs text-slate-800 font-bold" data-label="Peralatan">${log.namaPeralatan || '-'}</td>
+                <td class="px-4 py-3 text-left" data-label="Jenis">
                     <span class="px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${typeClass}">
                         ${log.jenisPerubahan || 'Kemaskini'}
                     </span>
                 </td>
-                <td class="px-4 py-3 text-left text-xs font-bold font-mono">
-                    ${typeIcon}${log.kuantiti || 0}
+                <td class="px-4 py-3 text-left text-xs font-bold font-mono" data-label="Kuantiti">
+                    <span>${typeIcon}${log.kuantiti || 0}</span>
                 </td>
-                <td class="px-4 py-3 text-xs text-slate-500 italic">
+                <td class="px-4 py-3 text-xs text-slate-500 italic" data-label="Catatan">
                     ${log.catatan || '-'}
                 </td>
             </tr>
@@ -3550,7 +3335,6 @@ function renderLogStok() {
     }).join('');
 }
 
-// Helper to format date relative to now or simple string
 function formatRelativeDate(isoDate) {
     if (!isoDate) return '-';
     const date = new Date(isoDate);
@@ -3561,7 +3345,6 @@ function renderLaporanDewanTable(permohonanData) {
     const tbody = document.getElementById('laporan-dewan-table');
     if (!tbody) return;
 
-    // Filter approved hall applications (hanya Diluluskan & Selesai)
     const dewanApps = permohonanData.filter(p => {
         const jenis = (p.jenisPermohonan || '').toLowerCase();
         const items = (p.items || '').toLowerCase();
@@ -3574,16 +3357,10 @@ function renderLaporanDewanTable(permohonanData) {
     }
 
     const now = new Date();
-    // Sort by date
     const sortedApps = [...dewanApps].sort((a, b) => new Date(a.tarikhMulaPinjam) - new Date(b.tarikhMulaPinjam));
 
-    // Categorize events:
-    // 1. Acara Terdahulu = Status "Selesai" (baik dari button OR status field) - ONLY SHOW IF STATUS IS "SELESAI"
-    // 2. Acara Akan Datang = Tarikh Mula Penggunaan belum tiba (startDate > now)
-    // 3. Acara Sedang Berlangsung = Sudah bermula tapi belum selesai (startDate <= now < endDate + 1 day)
 
     const pastEvents = sortedApps.filter(p => {
-        // Only show as past if status is explicitly "Selesai"
         return p.status === 'Selesai';
     });
 
@@ -3595,7 +3372,6 @@ function renderLaporanDewanTable(permohonanData) {
     const ongoingEvents = sortedApps.filter(p => {
         const startDate = new Date(p.tarikhMulaPinjam);
         const endDate = new Date(p.tarikhPulang);
-        // Calculate midnight (00:00) of the next day after end date
         const nextDayMidnight = new Date(endDate);
         nextDayMidnight.setDate(nextDayMidnight.getDate() + 1);
         nextDayMidnight.setHours(0, 0, 0, 0);
@@ -3633,7 +3409,6 @@ function renderLaporanDewanTable(permohonanData) {
     </tr>
 `;
 
-    // Ongoing Events Section
     html += `
     <tr class="bg-orange-50">
         <td colspan="4" class="px-6 py-4 text-[10px] font-black text-orange-600 uppercase tracking-widest">
@@ -3647,24 +3422,25 @@ function renderLaporanDewanTable(permohonanData) {
         ongoingEvents.forEach(p => {
             html += `
                 <tr class="border-b border-orange-100 transition-colors hover:bg-orange-50/30 bg-orange-50/10">
-                    <td class="px-6 py-4">
-                        <p class="text-sm font-bold text-orange-900">${p.tujuan || 'Aktiviti Dewan'}</p>
-                        <p class="text-[10px] text-orange-500 tracking-wide">${p.nama || 'Pemohon'}</p>
-                    </td>
-                    <td class="px-6 py-4">
-                        <div class="text-xs text-orange-700 font-medium">
-                            <p class="text-orange-900 font-bold">Tarikh Penggunaan</p>
-                            <p class="font-bold">${new Date(p.tarikhMulaPinjam).toLocaleDateString('ms-MY', { day: '2-digit', month: 'short', year: 'numeric' })} - ${new Date(p.tarikhPulang).toLocaleDateString('ms-MY', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                    <td class="px-6 py-4" data-label="Perincian">
+                        <div>
+                            <p class="text-sm font-bold text-orange-900">${p.tujuan || 'Aktiviti Dewan'}</p>
+                            <p class="text-[10px] text-orange-500 tracking-wide">${p.nama || 'Pemohon'}</p>
                         </div>
                     </td>
-                    <td class="px-6 py-4 text-left"><span class="px-2 py-1 bg-orange-200 text-orange-800 text-[9px] font-bold rounded-full uppercase tracking-widest shadow-sm animate-pulse">Sedang Berlangsung</span></td>
-                    <td class="px-6 py-4 text-left text-[10px] font-black text-orange-600 uppercase tracking-tighter">Aktif</td>
+                    <td class="px-6 py-4" data-label="Waktu">
+                        <div class="text-xs text-orange-700 font-medium">
+                            <p class="text-orange-900 font-bold">Penggunaan</p>
+                            <p class="font-bold">${new Date(p.tarikhMulaPinjam).toLocaleDateString('ms-MY', { day: '2-digit', month: 'short' })} - ${new Date(p.tarikhPulang).toLocaleDateString('ms-MY', { day: '2-digit', month: 'short' })}</p>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 text-left" data-label="Status"><span><span class="px-2 py-1 bg-orange-200 text-orange-800 text-[9px] font-bold rounded-full uppercase tracking-widest shadow-sm">Aktif</span></span></td>
+                    <td class="px-6 py-4 text-left text-[10px] font-black text-orange-600 uppercase tracking-tighter" data-label="Info">Berlangsung</td>
                 </tr>
             `;
         });
     }
 
-    // Upcoming Events Section
     html += `
     <tr class="bg-indigo-50/30">
         <td colspan="4" class="px-6 py-4 text-[10px] font-black text-indigo-600 uppercase tracking-widest">
@@ -3695,7 +3471,6 @@ function renderLaporanDewanTable(permohonanData) {
         });
     }
 
-    // Past Events Section
     html += `
     <tr class="bg-slate-50">
         <td colspan="4" class="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">
@@ -3729,7 +3504,6 @@ function renderLaporanDewanTable(permohonanData) {
     tbody.innerHTML = html;
 }
 
-// Date Filters for Laporan
 function resetDateFilter() {
     document.getElementById('filter-tarikh-mula').value = '';
     document.getElementById('filter-tarikh-akhir').value = '';
@@ -3737,10 +3511,8 @@ function resetDateFilter() {
     showToast('🔄 Filter dikosongkan');
 }
 
-// Re-render everything triggered by filter inputs
 function applyDateFilter() {
     console.log('applyDateFilter called');
-    // Ensure data store updates and laporan rerenders immediately
     try {
         DataStore.notify();
         renderLaporan();
@@ -3751,7 +3523,6 @@ function applyDateFilter() {
     }
 }
 
-// Date Filters for Senarai Permohonan section
 function applyPermohonanDateFilter() {
     console.log('applyPermohonanDateFilter called');
     try {
@@ -3779,7 +3550,6 @@ function resetPermohonanDateFilter() {
     }
 }
 
-// Download Functions
 function toggleDownloadMenu() {
     const menu = document.getElementById('download-menu');
     if (menu) {
@@ -3787,7 +3557,6 @@ function toggleDownloadMenu() {
     }
 }
 
-// Close menu when clicking outside
 window.addEventListener('click', (e) => {
     const menu = document.getElementById('download-menu');
     const btn = e.target.closest('button[onclick="toggleDownloadMenu()"]');
@@ -3803,7 +3572,6 @@ function downloadExcel() {
         return;
     }
 
-    // Define Headers
     const headers = [
         'Nama Pemohon',
         'Email',
@@ -3818,12 +3586,9 @@ function downloadExcel() {
         'Catatan Admin'
     ];
 
-    // Map Data to Rows
     const rows = data.map(row => {
-        // Handle items - escape commas for CSV
         const items = row.items ? row.items.replace(/,/g, ';') : '-';
 
-        // Return array of values
         return [
             `"${row.nama || ''}"`,
             `"${row.email || ''}"`,
@@ -3839,13 +3604,11 @@ function downloadExcel() {
         ];
     });
 
-    // Combine Headers and Rows
     const csvContent = [
         headers.join(','),
         ...rows.map(r => r.join(','))
     ].join('\n');
 
-    // Create Blob and Download
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -3862,14 +3625,12 @@ function downloadExcel() {
 function downloadPDF() {
     toggleDownloadMenu();
 
-    // Get date filter values
     const startDate = document.getElementById('filter-permohonan-mula')?.value;
     const endDate = document.getElementById('filter-permohonan-akhir')?.value;
     const dateRangeText = (startDate || endDate)
         ? `${startDate || '-'} hingga ${endDate || '-'}`
         : 'Semua Tarikh';
 
-    // Get logo
     const logoContainer = document.getElementById('sidebar-logo-container');
     let logoHTML = '';
     if (logoContainer) {
@@ -3879,7 +3640,6 @@ function downloadPDF() {
         }
     }
 
-    // Get filtered permohonan data
     let permohonan = getPermohonan();
 
     if (startDate || endDate) {
@@ -3899,7 +3659,6 @@ function downloadPDF() {
         });
     }
 
-    // Build table rows
     const tableRows = permohonan.map(p => {
         let itemsDisplay = '-';
         if (p.itemsData) {
@@ -3929,7 +3688,6 @@ function downloadPDF() {
         `;
     }).join('');
 
-    // Create print window
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
         showToast('❌ Sila benarkan popup untuk mencetak');
@@ -4097,7 +3855,6 @@ function printReport() {
     window.print();
 }
 
-// Background Image Management Logic
 let currentBgBase64 = null;
 
 function handleBgUpload(input) {
@@ -4156,7 +3913,6 @@ function saveBgSettings() {
     const size = document.getElementById('bg-size').value;
     const pos = document.getElementById('bg-position').value;
 
-    // Save to Google Sheets AND localStorage
     if (currentBgBase64) {
         localStorage.setItem('portalBgImage', currentBgBase64);
         savePortalSetting('portalBgImage', currentBgBase64);
@@ -4182,7 +3938,6 @@ async function savePortalSetting(key, val) {
         updatedAt: new Date().toISOString()
     };
 
-    // Check if exists in allData
     const existing = allData.find(d => d.__backendId === id);
     if (existing) {
         await DataStore.update(id, { value: val, updatedAt: new Date().toISOString() });
@@ -4192,7 +3947,6 @@ async function savePortalSetting(key, val) {
 }
 
 function applyBgSettings() {
-    // Load from Google Sheets OR localStorage (Priority: Google Sheets > LocalStorage)
     const bgFromData = allData.find(d => d.key === 'portalBgImage')?.value;
     const savedBg = bgFromData || localStorage.getItem('portalBgImage');
 
@@ -4216,20 +3970,17 @@ function applyBgSettings() {
         bgEl.style.backgroundPosition = savedPos;
         bgEl.style.backgroundRepeat = 'no-repeat';
         bgEl.style.backgroundAttachment = 'fixed';
-        bgEl.style.opacity = '1';
     } else {
         bgEl.style.backgroundImage = '';
-        bgEl.style.opacity = '0';
     }
+    bgEl.style.opacity = '1';
 
-    // Also update preview if exists
     const preview = document.getElementById('bg-preview');
     if (preview && savedBg) {
         preview.innerHTML = `<img src="${savedBg}" style="width:100%; height:100%; object-fit:${savedSize}; object-position:${savedPos};">`;
     }
 }
 
-// Logo Management Logic
 let currentLogoBase64 = null;
 
 function handleLogoUpload(input) {
@@ -4283,7 +4034,6 @@ function saveLogoSettings() {
     showToast('✅ Tetapan logo berjaya disimpan (Online Sync)!');
 }
 
-//arealoginscript
 
 function applyLogoSettings() {
     const logoFromData = allData.find(d => d.key === 'portalLogo')?.value;
@@ -4318,13 +4068,8 @@ function applyLogoSettings() {
     }
 }
 
-//login page script
 
-// ===== LOGIN HANDLING =====
-// handleLogin is now defined as a global function earlier in the script.
-// Deleting this duplicate.
 
-// Redirect if not logged in (for SPA logic)
 function checkAuth() {
     const isLocalLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
     const isSessionLoggedIn = sessionStorage.getItem('loggedIn') === 'true';
@@ -4336,26 +4081,22 @@ function checkAuth() {
         pageApp.classList.remove('hidden');
         pageApp.style.display = 'flex';
 
-        // Load user data into UI
         const name = localStorage.getItem('userName') || 'Admin';
         const email = localStorage.getItem('userEmail') || '';
         updateUserUI(name, email);
     }
 }
 
-// Update User display in Sidebar and Header
 function updateUserUI(name, email, photoURL = null) {
     if (!name) return;
-    console.log('👤 Updating User UI:', name);
+    // console.log('👤 Updating User UI:', name);
 
-    // Header Display
     const headerNameArr = document.querySelectorAll('header p.text-sm.font-bold.text-slate-800, #app header .text-slate-800 p.font-bold');
     const headerAvatarArr = document.querySelectorAll('header div.w-9.h-9.bg-gradient-to-br, #app header .w-9.h-9');
 
     headerNameArr.forEach(el => el.textContent = name);
     headerAvatarArr.forEach(el => el.textContent = name.charAt(0).toUpperCase());
 
-    // Sidebar Display
     const sidebarName = document.querySelector('aside p.text-sm.font-medium');
     const sidebarEmail = document.querySelector('aside p.text-xs.text-indigo-300');
     const sidebarAvatar = document.querySelector('aside div.w-8.h-8.bg-amber-400');
@@ -4366,15 +4107,12 @@ function updateUserUI(name, email, photoURL = null) {
 
 }
 
-// ===== SESSION CHECK (OLD REDIRECTS REMOVED) =====
 document.addEventListener('DOMContentLoaded', checkAuth);
 
-// ===== AUTO LOGOUT + REMINDER =====
 let timeoutReminder, autoLogout;
 let timeoutLimit = parseInt(localStorage.getItem('portalAutoLogout')) * 1000 || 30 * 1000; // Default 30s
 let reminderTime = timeoutLimit > 20000 ? timeoutLimit - 10000 : timeoutLimit * 0.7; // Reminder 10s before or 70% of time
 
-// Popup reminder
 const timeoutReminderDiv = document.createElement('div');
 timeoutReminderDiv.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:rgba(225,29,72,0.95);color:#fff;padding:18px 25px;border-radius:12px;font-weight:700;box-shadow:0 0 15px #e11d48,0 0 25px rgba(225,29,72,0.5);text-align:center;display:none;z-index:9999;';
 timeoutReminderDiv.innerHTML = `⚠️ Sesi anda hampir tamat! <br><span style="font-size:10px; opacity:0.8;">Skrin akan logout sebentar lagi kerana tiada aktiviti.</span> <br> <button id="stayLoggedIn" style="margin-top:10px;padding:8px 16px;border:none;border-radius:10px;background:#fff;color:#e11d48;font-weight:bold;cursor:pointer;box-shadow:0 5px 15px rgba(0,0,0,0.2);">Terus Login</button>`;
@@ -4388,7 +4126,6 @@ function resetIdleTimer() {
 }
 
 function startIdleTimer() {
-    // Only run if logged in as admin
     if (sessionStorage.getItem('loggedIn') !== 'true') return;
 
     timeoutReminder = setTimeout(() => {
@@ -4402,12 +4139,10 @@ function startIdleTimer() {
     }, timeoutLimit);
 }
 
-// Add global listeners for activity
 ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(evt => {
     document.addEventListener(evt, resetIdleTimer, false);
 });
 
-// Listener for "Stay Logged In" button
 document.addEventListener('click', (e) => {
     if (e.target.id === 'stayLoggedIn') {
         resetIdleTimer();
@@ -4416,27 +4151,23 @@ document.addEventListener('click', (e) => {
 
 startIdleTimer();
 
-// ===== BURGER MENU LOGOUT CONFIRM =====
 const logoutBtn = document.getElementById('logoutBtn');
 
 if (logoutBtn) {
     logoutBtn.addEventListener('click', e => {
         e.preventDefault();
         e.stopPropagation(); // ⬅️ INI FIX UTAMA
-        // Simpan last section / scroll
         const dashboardState = {
             scrollY: window.scrollY,
             lastSection: window.location.hash || '#dashboard'
         };
         localStorage.setItem('dashboardState', JSON.stringify(dashboardState));
 
-        // Tambah overlay
         let overlayDiv = document.createElement('div');
         overlayDiv.id = "logoutOverlay";
         overlayDiv.style.display = 'block';
         document.body.appendChild(overlayDiv);
 
-        // Buat popup confirm logout
         let confirmDiv = document.createElement('div');
         confirmDiv.id = "confirmLogoutDiv";
         confirmDiv.style.cssText = `
@@ -4480,7 +4211,6 @@ if (logoutBtn) {
         const cancelBtn = document.getElementById('cancelLogoutBtn');
         const confirmBtn = document.getElementById('confirmLogoutBtn');
 
-        // Cancel → remove popup & overlay, restore last section
         cancelBtn.addEventListener('click', () => {
             confirmDiv.remove();
             overlayDiv.remove(); // hilangkan kabur
@@ -4494,14 +4224,11 @@ if (logoutBtn) {
             }
         });
 
-        // Confirm → logout
         confirmDiv.addEventListener('click', async (e) => {
             if (e.target && e.target.id === 'confirmLogoutBtn') {
-                // Dim the popup to show processing
                 confirmDiv.style.opacity = "0.7";
                 confirmDiv.style.pointerEvents = "none";
 
-                // Show Loading Overlay on top of everything
                 let logoutLoading = document.createElement('div');
                 logoutLoading.id = "globalLogoutLoading";
                 logoutLoading.style.cssText = `
@@ -4519,13 +4246,11 @@ if (logoutBtn) {
                 document.body.appendChild(logoutLoading);
 
                 try {
-                    // 1. Firebase Signout (Wait for it)
                     if (typeof auth !== 'undefined' && auth) {
                         await auth.signOut();
                         console.log('✅ Firebase Signed Out');
                     }
 
-                    // 2. Clear Local & Session State completely
                     localStorage.setItem("isLoggedIn", "false");
                     localStorage.removeItem("userEmail");
                     localStorage.removeItem("userName");
@@ -4535,7 +4260,6 @@ if (logoutBtn) {
 
                     sessionStorage.clear();
 
-                    // 3. Small delay for Firebase persistence to settle
                     setTimeout(() => {
                         window.location.href = "index.html";
                     }, 1000);
@@ -4549,7 +4273,6 @@ if (logoutBtn) {
     });
 }
 
-// --- FIREBASE ADMIN MANAGEMENT ---
 
 window.loadAdminData = async function () {
     const tableBody = document.getElementById('admin-table-body');
@@ -4572,7 +4295,6 @@ function renderAdminTable(admins) {
     const tableBody = document.getElementById('admin-table-body');
     if (!tableBody) return;
 
-    // Ambil UID pengguna sekarang
     const currentUserUID = window.auth && window.auth.currentUser ? window.auth.currentUser.uid : null;
 
     tableBody.innerHTML = admins.map(admin => {
@@ -4583,24 +4305,27 @@ function renderAdminTable(admins) {
 
         return `
             <tr class="hover:bg-slate-50 transition-colors ${isSelf ? 'bg-indigo-50/30' : ''}">
-                <td class="px-6 py-4">
+                <td class="px-6 py-4" data-label="Pentadbir">
                     <div class="flex items-center gap-2">
                         <div class="font-bold text-slate-800">${admin.name || '-'}</div>
                         ${isSelf ? '<span class="text-[10px] bg-slate-800 text-white px-2 py-0.5 rounded-full font-bold">ANDA</span>' : ''}
                     </div>
                 </td>
-                <td class="px-6 py-4 text-slate-600 font-medium">${admin.email || admin.id}</td>
-                <td class="px-6 py-4 text-left">
+                <td class="px-6 py-4 text-slate-600 font-medium" data-label="Email">${admin.email || admin.id}</td>
+                <td class="px-6 py-4 text-left" data-label="Peranan">
                     <span class="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-xs font-bold">${admin.role || 'Staff'}</span>
                 </td>
-                <td class="px-6 py-4 text-left">
+                <td class="px-6 py-4 text-left" data-label="Status">
                     <span class="px-3 py-1 ${statusClass} rounded-full text-xs font-bold">${status}</span>
                 </td>
-                <td class="px-6 py-4">
+                <td class="px-6 py-4" data-label="Tindakan">
                     <div class="flex items-center justify-center gap-2">
-                        ${isSelf ? `
-                            <span class="text-xs text-slate-400 italic">Tiada tindakan</span>
-                        ` : `
+                        <button onclick="editAdminName('${admin.uid}', '${admin.name || ''}')" class="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Edit Nama">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                        </button>
+                        ${isSelf ? '' : `
                             <button onclick="toggleAdminStatus('${admin.uid}', '${status}')" 
                                 class="p-2 ${isBlocked ? 'text-green-600 hover:bg-green-50' : 'text-orange-600 hover:bg-orange-50'} rounded-lg transition-all" 
                                 title="${isBlocked ? 'Aktifkan' : 'Sekat Akses'}">
@@ -4621,7 +4346,6 @@ function renderAdminTable(admins) {
     }).join('');
 }
 
-// Event Listener untuk Borang Tambah Admin
 const addAdminForm = document.getElementById("form-add-admin");
 if (addAdminForm) {
     addAdminForm.addEventListener("submit", async (e) => {
@@ -4631,7 +4355,6 @@ if (addAdminForm) {
         const role = document.getElementById("admin-role").value;
         const password = document.getElementById("admin-password").value;
 
-        // Reset errors
         const emailErr = document.getElementById("admin-email-error");
         const passErr = document.getElementById("admin-password-error");
         if (emailErr) emailErr.classList.add('hidden');
@@ -4646,7 +4369,6 @@ if (addAdminForm) {
             hasError = true;
         }
 
-        // Alphanumeric Validation (Must have letters and numbers)
         const hasLetter = /[a-zA-Z]/.test(password);
         const hasNumber = /[0-9]/.test(password);
         if (password.length < 6 || !hasLetter || !hasNumber) {
@@ -4664,8 +4386,6 @@ if (addAdminForm) {
             submitBtn.disabled = true;
             submitBtn.innerHTML = 'Mendaftarkan...';
 
-            // 1. Create User in Firebase Authentication
-            // Note: We use a secondary app instance to avoid logging out the current admin
             let secondaryApp = firebase.initializeApp(firebaseConfig, "SecondaryApp_" + Date.now());
             let secondaryAuth = secondaryApp.auth();
 
@@ -4673,7 +4393,6 @@ if (addAdminForm) {
             const newUser = userCredential.user;
             const uid = newUser.uid; // Get UID from Auth
 
-            // 2. Save User Profile to Firestore using the UID
             await window.db.collection("users").doc(uid).set({
                 name,
                 email,
@@ -4682,7 +4401,6 @@ if (addAdminForm) {
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
 
-            // Cleanup secondary app
             await secondaryApp.delete();
 
             alert("✅ Pentadbir berjaya dicipta dalam Authentication & Firestore.");
@@ -4730,16 +4448,29 @@ window.deleteAdmin = async function (uid) {
     }
 };
 
-// Panggil muatan data apabila tab admin dibuka
+window.editAdminName = async function (uid, oldName) {
+    const newName = prompt("Kemaskini Nama Pentadbir:", oldName);
+    if (newName === null || newName.trim() === "" || newName === oldName) return;
+
+    try {
+        await window.db.collection("users").doc(uid).update({
+            name: newName.trim(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        showToast("✅ Nama pentadbir dikemaskini");
+        loadAdminData();
+    } catch (error) {
+        alert("Gagal kemaskini nama: " + error.message);
+    }
+};
+
 document.addEventListener('click', (e) => {
     if (e.target.closest('[onclick*="showPage(\'admin\')"]')) {
         loadAdminData();
     }
 });
 
-//end of login page script
 
-// --- WORD-LIKE EDITOR FOR REPORTS ---
 function executeAdvancedPrint(editMode = false) {
     const showSummary = document.getElementById('print-summary').checked;
     const showPeralatan = document.getElementById('print-peralatan').checked;
@@ -4749,7 +4480,6 @@ function executeAdvancedPrint(editMode = false) {
     const startDate = document.getElementById('filter-tarikh-mula').value;
     const endDate = document.getElementById('filter-tarikh-akhir').value;
 
-    // 1. Populate Printable Header Info
     const dateRangeEl = document.getElementById('print-date-range');
     const generatedDateEl = document.getElementById('print-generated-date');
     const logoTarget = document.getElementById('print-logo-target');
@@ -4768,7 +4498,6 @@ function executeAdvancedPrint(editMode = false) {
     if (dateRangeEl) dateRangeEl.textContent = `TEMPOH: ${startDate || '-'} hingga ${endDate || '-'}`;
     if (generatedDateEl) generatedDateEl.textContent = `DIJANA: ${new Date().toLocaleString('ms-MY')}`;
 
-    // 2. Selection Toggle
     const summaryCards = document.getElementById('report-summary-cards');
     const summarySection = document.getElementById('report-summary-section');
     const peralatanSection = document.getElementById('report-section-peralatan');
@@ -4792,7 +4521,6 @@ function executeAdvancedPrint(editMode = false) {
 }
 
 function triggerPrintAction() {
-    // Force Hide Toolbar if it was open
     document.getElementById('editor-toolbar').classList.add('hidden');
     document.getElementById('report-header-section').classList.add('no-print');
     document.getElementById('print-only-header').classList.remove('hidden');
@@ -4810,7 +4538,6 @@ function openReportPreviewModal() {
     const editableArea = document.getElementById('reportEditableArea');
     if (!modal || !editableArea) return;
 
-    // 1. Get current data and filters
     const startDate = document.getElementById('filter-tarikh-mula').value;
     const endDate = document.getElementById('filter-tarikh-akhir').value;
     const dateText = (startDate || endDate)
@@ -4821,13 +4548,11 @@ function openReportPreviewModal() {
     const topItem = document.getElementById('report-top-item').textContent;
     const approvalRate = document.getElementById('report-approval-rate').textContent;
 
-    // 2. Determine visibility from checkboxes
     const showSummary = document.getElementById('print-summary').checked;
     const showPeralatan = document.getElementById('print-peralatan').checked;
     const showDewan = document.getElementById('print-dewan').checked;
     const showLog = document.getElementById('print-log').checked;
 
-    // 3. Get logo if available
     const logoContainer = document.getElementById('sidebar-logo-container');
     let logoHTML = '';
     if (logoContainer) {
@@ -4837,7 +4562,6 @@ function openReportPreviewModal() {
         }
     }
 
-    // 4. Build Professional A4 Report HTML
     let reportContent = `
         <div class="report-document">
             
@@ -4973,12 +4697,10 @@ function openReportPreviewModal() {
     editableArea.innerHTML = reportContent;
     modal.classList.add('active');
 
-    // Clean up any stray classes from cloned tables
     editableArea.querySelectorAll('tr, td, th').forEach(el => {
         el.className = el.className.replace(/hover:bg-slate-50|transition-colors|bg-indigo-50\/50|bg-slate-50|bg-indigo-50\/30|border-b|border-slate-50|border-slate-100/g, '');
     });
 
-    // Initialize listeners
     initReportPreviewListeners();
 }
 
@@ -4997,14 +4719,12 @@ function initReportPreviewListeners() {
         const editableArea = document.getElementById('reportEditableArea');
         if (!editableArea) return;
 
-        // Create a temporary print window with the edited content
         const printWindow = window.open('', '_blank');
         if (!printWindow) {
             showToast('❌ Sila benarkan popup untuk mencetak');
             return;
         }
 
-        // Build the print document with proper A4 layout and fixed header/footer
         printWindow.document.write(`
             <!DOCTYPE html>
             <html>
@@ -5286,7 +5006,6 @@ function initReportPreviewListeners() {
 
         printWindow.document.close();
 
-        // Wait for content to load, then print
         setTimeout(() => {
             printWindow.focus();
             printWindow.print();
@@ -5383,23 +5102,18 @@ function changeFontSize(delta) {
     const selection = window.getSelection();
     if (!selection.rangeCount) return;
 
-    // Get the range and the common ancestor
     const range = selection.getRangeAt(0);
     let target = range.commonAncestorContainer;
 
-    // If it's a text node, get the parent element
     if (target.nodeType === 3) target = target.parentElement;
 
-    // Logic: If there is a selection, wrap in span or apply to selected blocks
     if (!selection.isCollapsed) {
-        // Advanced: Apply to the parent block to keep it simple for user
         const currentSize = window.getComputedStyle(target).fontSize;
         const newSize = Math.max(8, parseFloat(currentSize) + delta) + 'px';
         target.style.fontSize = newSize;
 
         showToast(`📏 Saiz tulisan: ${newSize}`);
     } else {
-        // If just cursor is placed, change the whole block for convenience
         const currentSize = window.getComputedStyle(target).fontSize;
         const newSize = Math.max(8, parseFloat(currentSize) + delta) + 'px';
         target.style.fontSize = newSize;
@@ -5412,48 +5126,38 @@ function saveEditorChanges() {
     setTimeout(triggerPrintAction, 500);
 }
 
-// ===== REAL-TIME SYNC & NOTIFICATION =====
 let isSyncing = false;
 const SYNC_INTERVAL = 15000; // Check every 15 seconds
 
 function startRealtimeSync() {
     console.log('📡 Starting Real-time Sync (Interval: 15s)');
 
-    // Initial sync handles first load, so we just set interval
     setInterval(async () => {
-        // Don't sync if user is not logged in (admin only)
         if (localStorage.getItem('isLoggedIn') !== 'true') return;
 
         if (isSyncing || !GoogleSheetsDB.isConfigured()) return;
 
         isSyncing = true;
         try {
-            // 1. Fetch silently
-            // We use fetchAll which is already defined in GoogleSheetsDB
-            // But we want to avoid full UI parsing unless needed
             const result = await fetch(`${GOOGLE_SCRIPT_URL}?action=getAll`).then(r => r.json());
 
             if (result.success && result.data) {
                 const currentCount = allData.length;
                 const newCount = result.data.length;
 
-                // 2. Check for differences (simple count check first)
                 if (newCount !== currentCount) {
                     console.log(`🔔 New update detected! ${currentCount} -> ${newCount}`);
 
                     const isNewData = newCount > currentCount;
 
-                    // Save & Update UI
                     localStorage.setItem('dewanData', JSON.stringify(result.data));
                     allData = result.data;
                     DataStore.notify();
 
-                    // 3. Notify Admin if data ADDED
                     if (isNewData) {
                         playNotificationSound();
                         showToast(`🔔 ${newCount - currentCount} permohonan/data baru diterima!`);
 
-                        // Update indicator to show activity
                         const indicator = document.getElementById('sheets-status-indicator');
                         if (indicator) {
                             indicator.className = 'w-3 h-3 rounded-full bg-blue-500 animate-pulse';
@@ -5470,9 +5174,7 @@ function startRealtimeSync() {
     }, SYNC_INTERVAL);
 }
 
-// Notification Sound System
 function playNotificationSound() {
-    // Refresh allData from store to be sure
     const freshData = DataStore.get();
 
     const soundFromData = freshData.find(d => d.key === 'portalSoundChoice')?.value;
@@ -5493,7 +5195,6 @@ function playNotificationSound() {
         } else if (choice === 'modern') {
             playFreqSound([440, 554.37, 659.25], volume, 150, 50);
         } else {
-            // Default Beep
             playFreqSound([500, 800], volume, 200, 50);
         }
     } catch (e) {
@@ -5523,7 +5224,6 @@ function playFreqSound(freqs, volume, duration, gap = 50) {
 }
 
 function testNotificationSound() {
-    // Temporarily read from UI
     const choice = document.getElementById('sound-choice').value;
     const volume = document.getElementById('sound-volume').value / 100;
     const customUrl = document.getElementById('custom-sound-url').value;
@@ -5560,7 +5260,6 @@ async function saveSoundSettings() {
     showToast('✅ Tetapan bunyi disimpan (Online Sync)!');
 }
 
-// Logic to show/hide custom sound URL
 document.addEventListener('DOMContentLoaded', () => {
     const soundChoice = document.getElementById('sound-choice');
     if (soundChoice) {
@@ -5574,7 +5273,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Load current values safely
     setTimeout(() => {
         const savedChoice = allData.find(d => d.key === 'portalSoundChoice')?.value || localStorage.getItem('portalSoundChoice');
         if (savedChoice && document.getElementById('sound-choice')) {
@@ -5595,15 +5293,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 1000);
 });
 
-// ===== REFERENCE NUMBER LOGIC =====
 function generateReferenceNo() {
     const now = new Date();
     const currentYear = now.getFullYear();
 
-    // Get all permohonan for this year to find the next number
     const permohonanTahunIni = allData.filter(d => {
         if (d.type !== 'permohonan' || !d.noPermohonan) return false;
-        // Format: DSK-XXX-YYYY
         const parts = d.noPermohonan.split('-');
         return parts.length === 3 && parts[2] === currentYear.toString();
     });
@@ -5620,12 +5315,10 @@ function generateReferenceNo() {
     return `DSK-${paddedNo}-${currentYear}`;
 }
 
-// Initialize User Form Handler with Reference Number
 function attachUserFormHandler() {
     const form = document.getElementById('form-user-permohonan');
     if (!form) return;
 
-    // Check if we already attached prevent duplicated submission
     if (form.dataset.attached === 'true') return;
     form.dataset.attached = 'true';
 
@@ -5635,7 +5328,6 @@ function attachUserFormHandler() {
         e.preventDefault();
 
         const btn = document.getElementById('btn-submit-user-permohonan'); // Ensure ID matches your HTML button
-        // Fallback if ID is different
         const submitBtn = btn || form.querySelector('button[type="submit"]');
 
         const originalText = submitBtn ? submitBtn.innerHTML : 'Hantar';
@@ -5645,7 +5337,6 @@ function attachUserFormHandler() {
         }
 
         try {
-            // Collect Data
             const id = Date.now().toString();
             const noPermohonan = generateReferenceNo();
 
@@ -5669,30 +5360,24 @@ function attachUserFormHandler() {
 
             console.log('🚀 Submitting User Permohonan:', permohonan);
 
-            // Save Data
             await DataStore.add(permohonan);
 
-            // Show Success UI with Reference Number
             form.classList.add('hidden');
             const successContainer = document.getElementById('user-success-container');
             if (successContainer) {
                 successContainer.classList.remove('hidden');
 
-                // Show Reference No
                 const refEl = document.getElementById('success-no-permohonan');
                 if (refEl) {
                     refEl.textContent = noPermohonan;
                 } else {
-                    // Inject if missing from HTML edit failure earlier
                     const p = document.createElement('p');
                     p.innerHTML = `<br>No. Rujukan: <strong class="text-2xl text-indigo-600">${noPermohonan}</strong>`;
-                    // Insert before the buttons
                     const btnContainer = successContainer.querySelector('div.mt-10') || successContainer.lastElementChild;
                     successContainer.insertBefore(p, btnContainer);
                 }
             }
 
-            // Clear Form
             form.reset();
 
         } catch (error) {
@@ -5707,9 +5392,7 @@ function attachUserFormHandler() {
     });
 }
 
-// ADMIN ADD KATEGORI & PERALATAN HANDLERS
 document.addEventListener('DOMContentLoaded', () => {
-    // Kategori Form
     const formKategori = document.getElementById('form-kategori');
     if (formKategori) {
         formKategori.addEventListener('submit', async (e) => {
@@ -5744,7 +5427,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Peralatan Form
     const formPeralatan = document.getElementById('form-peralatan');
     if (formPeralatan) {
         formPeralatan.addEventListener('submit', async (e) => {
@@ -5758,7 +5440,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const addedBaru = parseInt(document.getElementById('tambah-baru').value) || 0;
             const addedRosak = parseInt(document.getElementById('item-rosak').value) || 0;
 
-            // Get existing data if editing
             let existing = null;
             if (editId) {
                 existing = allData.find(d => String(d.__backendId) === String(editId));
@@ -5766,7 +5447,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const now = new Date().toISOString();
 
-            // Calculate new totals
             let currentTotal = existing ? (parseInt(existing.kuantiti) || 0) : 0;
             let totalBaru = existing ? (parseInt(existing.totalBaru) || 0) : 0;
             let totalRosak = existing ? (parseInt(existing.totalRosak) || 0) : 0;
@@ -5781,7 +5461,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 lastUpdateBaru = now;
                 lastUpdateJumlah = now;
 
-                // Log Tambah (Only if editing existing item)
                 if (editId) {
                     await DataStore.add({
                         type: 'log_stok',
@@ -5796,14 +5475,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (addedRosak > 0) {
-                // Ensure we don't subtract more than available, but typically equipment total includes broken ones until removed?
-                // User said "tolak dari jumlah yang ada".
                 currentTotal = Math.max(0, currentTotal - addedRosak);
                 totalRosak += addedRosak;
                 lastUpdateRosak = now;
                 lastUpdateJumlah = now;
 
-                // Log Rosak (Only if editing existing item)
                 if (editId) {
                     await DataStore.add({
                         type: 'log_stok',
@@ -5835,13 +5511,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (editId) {
                 result = await DataStore.update(editId, data);
             } else {
-                // For new items, initial quantity is set as "Baru"
                 data.totalBaru = data.kuantiti;
                 data.lastUpdateBaru = now;
                 data.lastUpdateJumlah = now;
                 result = await DataStore.add(data);
 
-                // Log Creation for New Item
                 await DataStore.add({
                     type: 'log_stok',
                     peralatanId: data.__backendId,
@@ -5859,7 +5533,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 formPeralatan.reset();
                 document.getElementById('peralatan-id').value = '';
 
-                // Refresh UIs
                 renderPeralatan();
                 if (typeof renderLaporan === 'function') renderLaporan();
             }
@@ -5869,7 +5542,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// ===== SECURITY SETTINGS HANDLER =====
 async function saveSecuritySettings() {
     const duration = parseInt(document.getElementById('auto-logout-duration').value);
 
@@ -5880,22 +5552,18 @@ async function saveSecuritySettings() {
 
     localStorage.setItem('portalAutoLogout', duration);
 
-    // Update local variables immediately
     timeoutLimit = duration * 1000;
     reminderTime = timeoutLimit > 20000 ? timeoutLimit - 10000 : timeoutLimit * 0.7;
 
-    // Sync to Google Sheets if possible
     if (typeof savePortalSetting === 'function') {
         await savePortalSetting('portalAutoLogout', duration);
     }
 
     showToast('✅ Tetapan keselamatan disimpan! Timer dimulakan semula.');
 
-    // Restart logic
     resetIdleTimer();
 }
 
-// Ensure settings are loaded on startup
 document.addEventListener('DOMContentLoaded', () => {
     const savedDuration = localStorage.getItem('portalAutoLogout') || "30";
     const durationInput = document.getElementById('auto-logout-duration');
@@ -5904,8 +5572,104 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Call on load
 document.addEventListener('DOMContentLoaded', attachUserFormHandler);
 
-// Helper to save portal settings to Sheets - Consolidated with previous definition
-// Removing duplicate.
+
+/* --- SHARE LINK & QR CODE --- */
+
+function initShareLink() {
+    const baseUrl = window.location.origin + window.location.pathname;
+    const shareUrl = `${baseUrl}#user=true`;
+
+    const input = document.getElementById('sharelink-url');
+    const img = document.getElementById('share-qr-img');
+
+    if (input) {
+        input.value = shareUrl;
+    }
+
+    if (img) {
+        // Use QR Server API
+        const qrApi = `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(shareUrl)}`;
+        img.src = qrApi;
+    }
+}
+
+function copySharelink() {
+    const input = document.getElementById('sharelink-url');
+    if (!input) return;
+
+    input.select();
+    input.setSelectionRange(0, 99999);
+
+    try {
+        navigator.clipboard.writeText(input.value).then(() => {
+            showToast('✅ Link berjaya disalin!');
+        });
+    } catch (err) {
+        document.execCommand('copy');
+        showToast('✅ Link berjaya disalin!');
+    }
+}
+
+function downloadShareQR() {
+    const img = document.getElementById('share-qr-img');
+    if (!img || !img.src) {
+        showToast('QR Code belum sedia');
+        return;
+    }
+
+    const qrUrl = img.src;
+
+    fetch(qrUrl)
+        .then(response => response.blob())
+        .then(blob => {
+            const blobUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = 'borang-qr-code.png';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(blobUrl);
+            showToast('✅ QR Code sedang dimuat turun...');
+        })
+        .catch(() => {
+            window.open(qrUrl, '_blank');
+            showToast('⚠️ Gagal auto-download. Sila "Save Image As" di tab baru.');
+        });
+}
+
+// Ensure initShareLink is called when opening modal
+if (typeof window.openModal !== 'undefined') {
+    const originalOpenModal = window.openModal;
+    window.openModal = function (id) {
+        originalOpenModal(id);
+        if (id === 'modal-sharelink') initShareLink();
+    };
+}
+
+
+/* --- SHARE LINK TRIGGER --- */
+function showSharelinkInfo() {
+    // Open the modal using available method
+    if (typeof openModal === 'function') {
+        openModal('modal-sharelink');
+    } else if (typeof window.openModal === 'function') {
+        window.openModal('modal-sharelink');
+    } else {
+        const m = document.getElementById('modal-sharelink');
+        if (m) m.classList.remove('hidden');
+    }
+
+    // Initialize content
+    if (typeof initShareLink === 'function') {
+        initShareLink();
+    }
+}
+
+
+function previewUserForm() {
+    const baseUrl = window.location.origin + window.location.pathname;
+    window.open(baseUrl + '#user=true', '_blank');
+}

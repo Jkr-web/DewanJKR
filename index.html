@@ -43,7 +43,7 @@
 <!----LOGIN PAGE START-->
 
 <body class="h-full bg-slate-100"><!-- Login Page -->
-    <div id="login-page" class="h-full flex items-center justify-center p-4">
+    <div id="login-page" class="min-h-screen flex items-center justify-center p-4 py-10 overflow-y-auto">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
             <div class="bg-gradient-to-br from-indigo-600 to-purple-700 p-6 md:p-8 text-white">
                 <div class="flex items-center justify-center mb-6">
@@ -193,7 +193,7 @@
                     </svg>
                 </button>
             </div>
-            <nav class="flex-1 p-4 space-y-1"><button onclick="showPage('dashboard')"
+            <nav class="flex-1 p-4 space-y-1 overflow-y-auto"><button onclick="showPage('dashboard')"
                     class="sidebar-item active w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all"
                     data-page="dashboard">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
@@ -259,7 +259,7 @@
             <!--DASHBOARD PAGE START-->
         </aside><!-- Main Content -->
 
-        <main id="admin-content" class="flex-1 overflow-auto bg-slate-100 min-h-screen">
+        <main id="admin-content" class="flex-1 overflow-auto bg-slate-100">
             <!-- Shared Header (Mobile & Desktop) -->
             <header
                 class="bg-white border-b border-slate-200 px-4 md:px-8 py-3 flex items-center justify-between sticky top-0 z-40">
@@ -492,7 +492,7 @@
 
                 <div class="bg-white rounded-2xl shadow-sm overflow-hidden mb-8">
                     <div class="overflow-x-auto">
-                        <table class="w-full" id="permohonan-table-wrapper">
+                        <table class="w-full responsive-table" id="permohonan-table-wrapper">
                             <thead class="bg-slate-50">
                                 <tr>
                                     <th
@@ -739,7 +739,7 @@
                                                     <div id="chart-peralatan" class="space-y-6"></div>
                                                 </div>
                                                 <div class="lg:col-span-2">
-                                                    <table class="w-full">
+                                                    <table class="w-full responsive-table">
                                                         <thead class="bg-slate-50">
                                                             <tr>
                                                                 <th
@@ -795,7 +795,7 @@
                                                 </div>
                                             </div>
                                             <div class="overflow-x-auto">
-                                                <table class="w-full">
+                                                <table class="w-full responsive-table">
                                                     <tbody id="laporan-dewan-table"></tbody>
                                                 </table>
                                             </div>
@@ -836,7 +836,7 @@
                                                 </div>
                                             </div>
                                             <div class="overflow-x-auto">
-                                                <table class="w-full">
+                                                <table class="w-full responsive-table">
                                                     <thead>
                                                         <tr class="bg-slate-50 border-b border-slate-200">
                                                             <th
@@ -967,7 +967,7 @@
                 <!-- Admin Table -->
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
                     <div class="overflow-x-auto">
-                        <table class="w-full">
+                        <table class="w-full responsive-table">
                             <thead>
                                 <tr class="bg-slate-50 border-b border-slate-100">
                                     <th
@@ -1563,9 +1563,9 @@
     <!-- Modal User Form -->
     <div id="modal-user-form" class="fixed inset-0 z-[9999] hidden">
         <div class="modal-overlay absolute inset-0" onclick="closeUserForm()"></div>
-        <div class="absolute inset-0 flex items-center justify-center p-4 overflow-auto pointer-events-none">
+        <div class="absolute inset-0 overflow-y-auto p-4 pointer-events-none">
             <div
-                class="glass-panel rounded-xl shadow-2xl w-full max-w-3xl my-8 animate-slide pointer-events-auto relative z-50">
+                class="glass-panel rounded-xl shadow-2xl w-full max-w-3xl mx-auto my-8 animate-slide pointer-events-auto relative z-50">
                 <!-- Header - Google Form Style -->
                 <div class="bg-gradient-to-r from-purple-600 to-indigo-600 p-6 md:p-8 rounded-t-xl">
                     <div class="flex items-start justify-between">
@@ -1594,7 +1594,7 @@
                             </svg></button>
                     </div>
                 </div><!-- Form Content -->
-                <form id="form-user-permohonan" class="p-6 md:p-8 space-y-6 max-h-[600px] overflow-y-auto">
+                <form id="form-user-permohonan" class="p-6 md:p-8 space-y-6">
                     <!-- Section 1: Maklumat Peribadi -->
                     <div class="space-y-5">
                         <div class="pb-3 border-b-2 border-purple-200">
@@ -2067,6 +2067,28 @@
                         </div>
                     </div>
                     <form id="form-tindakan" class="p-4 md:p-6 space-y-4"><input type="hidden" id="tindakan-id">
+                        <!-- Toggle for Equipment Editing (only shown for Peralatan requests) -->
+                        <div id="items-edit-section" class="hidden space-y-3">
+                            <div class="flex items-start gap-3 p-3 bg-amber-50 rounded-lg border border-amber-300">
+                                <input type="checkbox" id="toggle-edit-items"
+                                    class="w-5 h-5 cursor-pointer mt-0.5 flex-shrink-0"
+                                    onchange="document.getElementById('items-edit-container-wrapper').classList.toggle('hidden')">
+                                <label for="toggle-edit-items"
+                                    class="text-sm font-semibold text-amber-900 cursor-pointer">
+                                    🔧 Ubah Peralatan yang Dipinjam (tick jika pengguna meminta perubahan item)
+                                </label>
+                            </div>
+
+                            <div id="items-edit-container-wrapper" class="hidden">
+                                <label class="block text-sm font-medium text-slate-700 mb-4">Item Dipinjam
+                                    (Edit)</label>
+                                <div id="items-edit-container"
+                                    class="border border-slate-200 rounded-xl p-4 md:p-5 max-h-[300px] md:max-h-[400px] overflow-y-auto space-y-4 bg-slate-50">
+                                    <p class="text-slate-400 text-sm text-center py-6">Tiada item</p>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Toggle for Date Editing -->
                         <div class="flex items-start gap-3 p-3 bg-amber-50 rounded-lg border border-amber-300">
                             <input type="checkbox" id="toggle-edit-dates"
@@ -2114,28 +2136,6 @@
                                 class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                 placeholder="Tambah catatan..."></textarea>
                         </div>
-
-                        <!-- Toggle for Equipment Editing (only shown for Peralatan requests) -->
-                        <div id="items-edit-section" class="hidden space-y-3">
-                            <div class="flex items-start gap-3 p-3 bg-amber-50 rounded-lg border border-amber-300">
-                                <input type="checkbox" id="toggle-edit-items"
-                                    class="w-5 h-5 cursor-pointer mt-0.5 flex-shrink-0"
-                                    onchange="document.getElementById('items-edit-container-wrapper').classList.toggle('hidden')">
-                                <label for="toggle-edit-items"
-                                    class="text-sm font-semibold text-amber-900 cursor-pointer">
-                                    🔧 Ubah Peralatan yang Dipinjam (tick jika pengguna meminta perubahan item)
-                                </label>
-                            </div>
-
-                            <div id="items-edit-container-wrapper" class="hidden">
-                                <label class="block text-sm font-medium text-slate-700 mb-4">Item Dipinjam
-                                    (Edit)</label>
-                                <div id="items-edit-container"
-                                    class="border border-slate-200 rounded-xl p-4 md:p-5 max-h-[300px] md:max-h-[400px] overflow-y-auto space-y-4 bg-slate-50">
-                                    <p class="text-slate-400 text-sm text-center py-6">Tiada item</p>
-                                </div>
-                            </div>
-                        </div>
                         <div><label for="tarikh-selesai" class="block text-sm font-medium text-slate-700 mb-2">Tarikh
                                 Selesai</label>
                             <input type="text" id="tarikh-selesai" readonly
@@ -2166,7 +2166,7 @@
         <div class="modal-overlay absolute inset-0" onclick="closeModal('modal-sharelink')"></div>
         <div class="absolute inset-0 flex items-center justify-center p-4 pointer-events-none">
             <div
-                class="glass-panel rounded-2xl shadow-2xl w-full max-w-2xl animate-slide pointer-events-auto relative z-50">
+                class="glass-panel rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90%] overflow-y-auto animate-slide pointer-events-auto relative z-50">
                 <div class="p-6 border-b border-slate-100">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-3">
@@ -2189,40 +2189,71 @@
                             </svg></button>
                     </div>
                 </div>
-                <div class="p-6 space-y-6"><!-- Link Section -->
-                    <div
-                        class="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl p-6 border-2 border-purple-200">
-                        <label class="block text-sm font-semibold text-purple-900 mb-3">🔗 Pautan Borang</label>
-                        <div class="flex items-center gap-3"><input type="text" id="sharelink-url" readonly value=""
-                                class="flex-1 px-4 py-3 bg-white border-2 border-purple-300 rounded-lg text-slate-700 font-mono text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
-                            <button onclick="copySharelink()"
-                                class="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium flex items-center gap-2 transition-colors whitespace-nowrap">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                                </svg> Salin Link </button>
+                <div class="p-6 space-y-6">
+                    <!-- BEAUTIFIED LINK & QR SECTION -->
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                        <!-- Link Input Part -->
+                        <div class="p-6 bg-slate-50 border-b border-slate-100">
+                            <label class="block text-sm font-bold text-slate-700 mb-2">🔗 Pautan Borang (Form
+                                Link)</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="sharelink-url" readonly
+                                    class="flex-1 px-4 py-3 bg-white border border-slate-300 rounded-xl text-slate-600 font-mono text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm outline-none"
+                                    placeholder="https://...">
+                                <button onclick="copySharelink()"
+                                    class="px-4 md:px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm shadow-md transition-all active:scale-95 flex items-center gap-2 whitespace-nowrap">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                                    </svg>
+                                    Salin
+                                </button>
+                            </div>
                         </div>
-                        <p class="text-xs text-purple-700 mt-3">💡 <strong>Tip:</strong> Klik "Salin Link" dan kongsi
-                            dengan pengguna melalui WhatsApp, Email, atau platform lain.</p>
-                    </div><!-- Preview Button -->
-                    <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
-                                <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor"
-                                    viewbox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                </svg>
+
+                        <!-- QR Code & Actions Part -->
+                        <div class="p-6 grid grid-cols-1 md:grid-cols-[auto_1fr] gap-8 items-center">
+                            <!-- QR Image -->
+                            <div class="flex flex-col items-center gap-2">
+                                <div class="p-3 bg-white rounded-xl border-2 border-indigo-100 shadow-sm">
+                                    <img id="share-qr-img" src="" alt="QR Code"
+                                        class="w-32 h-32 md:w-40 md:h-40 object-contain bg-slate-50 rounded-lg">
+                                </div>
+                                <p class="text-[10px] text-slate-400 font-mono">Scan untuk buka</p>
                             </div>
-                            <div>
-                                <p class="font-medium text-slate-800">Preview Borang User</p>
-                                <p class="text-sm text-slate-500">Lihat bagaimana user akan nampak borang ini</p>
+
+                            <!-- Actions -->
+                            <div class="space-y-4">
+                                <div>
+                                    <h4 class="text-lg font-bold text-slate-800">Scan &amp; Isi Borang</h4>
+                                    <p class="text-sm text-slate-500 leading-relaxed">
+                                        Muat turun kod QR ini untuk diletakkan pada poster, meja kaunter, atau dikongsi
+                                        melalui WhatsApp.
+                                    </p>
+                                </div>
+
+                                <div class="flex flex-wrap gap-3">
+                                    <button onclick="downloadShareQR()"
+                                        class="px-5 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg font-semibold text-sm transition-colors flex items-center gap-2">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                        </svg>
+                                        Download QR
+                                    </button>
+                                    <button onclick="previewUserForm()"
+                                        class="px-5 py-2.5 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 text-indigo-700 rounded-lg font-semibold text-sm transition-colors flex items-center gap-2">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                        Preview Borang
+                                    </button>
+                                </div>
                             </div>
-                        </div><button onclick="openModal('modal-user-form'); closeModal('modal-sharelink');"
-                            class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors">
-                            👁️ Preview </button>
+                        </div>
                     </div><!-- Instructions -->
                     <div class="space-y-3">
                         <h4 class="font-semibold text-slate-800 flex items-center gap-2">
@@ -2250,20 +2281,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-lg">
-                        <div class="flex items-start gap-3">
-                            <svg class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor"
-                                viewbox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                            </svg>
-                            <div>
-                                <h5 class="text-sm font-semibold text-amber-800 mb-1">⚠️ Penting</h5>
-                                <p class="text-xs text-amber-700">Link ini hanya berfungsi jika Canva Code ini sudah
-                                    di-publish. Pastikan publish dahulu sebelum kongsi link!</p>
-                            </div>
-                        </div>
-                    </div>
+
                 </div>
             </div>
         </div>
