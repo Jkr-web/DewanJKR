@@ -1,1 +1,1 @@
-[https://jkr-web.github.io/DewanJKR/index.html]
+[https://udin9.github.io/pinjaman-dewan1/]
