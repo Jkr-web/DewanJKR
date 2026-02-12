@@ -2586,15 +2586,16 @@ function toggleUserPermohonanFields() {
     checkUserTerms();
 }
 
+let userCalMonth = new Date().getMonth();
+let userCalYear = new Date().getFullYear();
+let userCalPickerOpen = false;
+
 function renderUserAvailabilityCalendar() {
     const container = document.getElementById('availability-calendar-container');
     if (!container) return;
 
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-    const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+    const daysInMonth = new Date(userCalYear, userCalMonth + 1, 0).getDate();
+    const firstDay = new Date(userCalYear, userCalMonth, 1).getDay();
 
     const dewanPermohonan = allData.filter(d =>
         d.type === 'permohonan' &&
@@ -2604,10 +2605,42 @@ function renderUserAvailabilityCalendar() {
 
     const monthNames = ["Januari", "Februari", "Mac", "April", "Mei", "Jun", "Julai", "Ogos", "September", "Oktober", "November", "Disember"];
 
-    let html = `<div class="col-span-7 text-center font-black text-slate-700 mb-2 py-1 border-b border-slate-200">${monthNames[currentMonth]} ${currentYear}</div>`;
+    let html = `
+        <div class="col-span-7 flex items-center justify-between mb-3 bg-slate-100 p-1.5 rounded-lg border border-slate-200">
+            <button type="button" onclick="changeUserCalMonth(-1)" class="p-1 hover:bg-white rounded-md transition-all text-slate-600">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+            </button>
+            <button type="button" onclick="toggleUserCalPicker()" class="px-3 py-1 hover:bg-white rounded-md transition-all text-center font-black text-slate-800 uppercase tracking-widest text-[10px]">
+                ${monthNames[userCalMonth]} ${userCalYear}
+                <svg class="w-2.5 h-2.5 inline-block ml-1 opacity-50" fill="currentColor" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
+            </button>
+            <button type="button" onclick="changeUserCalMonth(1)" class="p-1 hover:bg-white rounded-md transition-all text-slate-600">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </button>
+        </div>
+
+        <!-- Month/Year Picker Card -->
+        ${userCalPickerOpen ? `
+        <div class="cal-picker-card">
+            <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+                <button type="button" onclick="changeUserCalYear(-1)" class="year-nav-btn text-[10px]">&laquo;</button>
+                <div class="font-black text-slate-800 text-[11px]">${userCalYear}</div>
+                <button type="button" onclick="changeUserCalYear(1)" class="year-nav-btn text-[10px]">&raquo;</button>
+            </div>
+            <div class="cal-picker-months">
+                ${monthNames.map((m, i) => `
+                    <button type="button" onclick="selectUserCalMonth(${i})" class="month-btn ${userCalMonth === i ? 'active' : ''}">
+                        ${m.substring(0, 3)}
+                    </button>
+                `).join('')}
+            </div>
+        </div>
+        ` : ''}
+    `;
+
     const dayNames = ['Aha', 'Isn', 'Sel', 'Rab', 'Kha', 'Jum', 'Sab'];
     dayNames.forEach(d => {
-        html += `<div class="text-center font-bold text-slate-400 py-1">${d}</div>`;
+        html += `<div class="text-center font-bold text-slate-400 py-1 text-[9px] uppercase tracking-tighter">${d}</div>`;
     });
 
     for (let i = 0; i < firstDay; i++) {
@@ -2615,12 +2648,10 @@ function renderUserAvailabilityCalendar() {
     }
 
     for (let d = 1; d <= daysInMonth; d++) {
-        const checkDate = new Date(currentYear, currentMonth, d);
+        const checkDate = new Date(userCalYear, userCalMonth, d);
         checkDate.setHours(12, 0, 0, 0);
 
-        let statusClass = 'cal-day-available'; // Default Green
-
-        // Priority: Blocked (Red) > Pending (Blue)
+        let statusClass = 'cal-day-available';
         let isBlocked = false;
         let isPending = false;
 
@@ -2648,6 +2679,36 @@ function renderUserAvailabilityCalendar() {
 
     container.innerHTML = html;
 }
+
+window.changeUserCalMonth = function (offset) {
+    userCalMonth += offset;
+    if (userCalMonth > 11) {
+        userCalMonth = 0;
+        userCalYear++;
+    } else if (userCalMonth < 0) {
+        userCalMonth = 11;
+        userCalYear--;
+    }
+    userCalPickerOpen = false;
+    renderUserAvailabilityCalendar();
+};
+
+window.toggleUserCalPicker = function () {
+    userCalPickerOpen = !userCalPickerOpen;
+    renderUserAvailabilityCalendar();
+};
+
+window.selectUserCalMonth = function (m) {
+    userCalMonth = m;
+    userCalPickerOpen = false;
+    renderUserAvailabilityCalendar();
+};
+
+window.changeUserCalYear = function (offset) {
+    userCalYear += offset;
+    renderUserAvailabilityCalendar();
+};
+
 
 function checkUserTerms() {
     const jenisPermohonan = document.getElementById('user-jenis-permohonan-hidden')?.value || '';
@@ -4316,6 +4377,10 @@ function resetIdleTimer() {
 
 function startIdleTimer() {
     if (sessionStorage.getItem('loggedIn') !== 'true') return;
+
+    // Don't auto-logout if user-form is open
+    const modalUser = document.getElementById('modal-user-form');
+    if (modalUser && !modalUser.classList.contains('hidden')) return;
 
     timeoutReminder = setTimeout(() => {
         timeoutReminderDiv.style.display = 'block';
