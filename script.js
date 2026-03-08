@@ -58,7 +58,7 @@ if (document.readyState === 'loading') {
 }
 
 
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxmbW5qrWAXdwERdRj_eGCOHTXxK1q7pfXEG3UVZw0JdUGuwc29qinjUpNqyMXhDAeFEQ/exec';
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzwlAUTh8hSuYrMQcFDApU5mUB-s3Tq2fL8BwYT0ME4yiMRVBb_n3eePkjvyW5VpdFB7g/exec';
 const AUTH_TOKEN = 'CInta_Mtaa2026_diRkhsg';
 
 const GoogleSheetsDB = {
