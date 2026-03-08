@@ -4874,10 +4874,16 @@ function applyBgSettings() {
         bgEl.style.backgroundPosition = savedPos;
         bgEl.style.backgroundRepeat = 'no-repeat';
         bgEl.style.backgroundAttachment = 'fixed';
+        bgEl.style.opacity = '1';
     } else {
-        bgEl.style.backgroundImage = '';
+        // Default local background (LOGO/JKR-Logo.png)
+        bgEl.style.backgroundImage = `linear-gradient(rgba(241, 245, 249, 0.94), rgba(241, 245, 249, 0.94)), url('LOGO/JKR-Logo.png')`;
+        bgEl.style.backgroundSize = 'contain';
+        bgEl.style.backgroundPosition = 'center';
+        bgEl.style.backgroundRepeat = 'no-repeat';
+        bgEl.style.backgroundAttachment = 'fixed';
+        bgEl.style.opacity = '0.08'; // Sangat halus (Watermark style)
     }
-    bgEl.style.opacity = '1';
 
     const preview = document.getElementById('bg-preview');
     if (preview && savedBg) {
