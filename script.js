@@ -542,6 +542,10 @@ const BACKUP_INTERVALS = {
 
 function setBackupSchedule(type) {
     localStorage.setItem('backupSchedule', type);
+    // Simpan ke cloud juga
+    if (typeof savePortalSetting === 'function') {
+        savePortalSetting('backupSchedule', type);
+    }
     updateBackupUI(type);
     showToast(`✅ Jadual backup ditetapkan: ${type.charAt(0).toUpperCase() + type.slice(1)}`);
 }
@@ -722,7 +726,14 @@ async function runDriveBackup(silent = false) {
 }
 
 function initBackupUI() {
-    const schedule = localStorage.getItem('backupSchedule') || 'manual';
+    // Cuba ambil dari cloud dulu jika ada
+    const cloudSchedule = allData.find(d => d.key === 'backupSchedule')?.value;
+    const schedule = cloudSchedule || localStorage.getItem('backupSchedule') || 'manual';
+
+    if (cloudSchedule && cloudSchedule !== localStorage.getItem('backupSchedule')) {
+        localStorage.setItem('backupSchedule', cloudSchedule);
+    }
+
     updateBackupUI(schedule);
     checkAutoBackup();
     renderBackupLogs();
@@ -1375,6 +1386,11 @@ async function autoLoadFromGoogleSheets() {
             const statusText = document.getElementById('sheets-status-text');
             if (indicator) indicator.className = 'w-3 h-3 rounded-full bg-green-500';
             if (statusText) statusText.textContent = '✅ Data dimuat dari Google Sheets';
+
+            // Terapkan semua tetapan portal dari data yang baru dimuat
+            applyBgSettings();
+            applyLogoSettings();
+            if (typeof initBackupUI === 'function') initBackupUI();
         } else {
             console.log('ℹ️ No data in Google Sheets or fetch failed, using localStorage');
             applyBgSettings();
@@ -1744,6 +1760,9 @@ function logout() {
     const portalLogo = localStorage.getItem('portalLogo');
     const portalLogoFit = localStorage.getItem('portalLogoFit');
     const autoLogout = localStorage.getItem('portalAutoLogout');
+    const backupSchedule = localStorage.getItem('backupSchedule');
+    const lastBackupTime = localStorage.getItem('lastBackupTime');
+    const backupLogs = localStorage.getItem('backupLogs');
 
     // Record logout time before clearing data
     try {
@@ -1768,6 +1787,9 @@ function logout() {
     if (portalLogo) localStorage.setItem('portalLogo', portalLogo);
     if (portalLogoFit) localStorage.setItem('portalLogoFit', portalLogoFit);
     if (autoLogout) localStorage.setItem('portalAutoLogout', autoLogout);
+    if (backupSchedule) localStorage.setItem('backupSchedule', backupSchedule);
+    if (lastBackupTime) localStorage.setItem('lastBackupTime', lastBackupTime);
+    if (backupLogs) localStorage.setItem('backupLogs', backupLogs);
 
     sessionStorage.clear();
 
