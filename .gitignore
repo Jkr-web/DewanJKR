@@ -10,6 +10,10 @@ Thumbs.db
 # Node modules
 node_modules/
 
+# User documentation
+manual/
+google_script_code.md
+
 # Local testing
 temp_filter.html
 PANDUAN_UJIAN.md

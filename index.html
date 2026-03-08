@@ -11,9 +11,9 @@
     <script src="/_sdk/element_sdk.js"></script>
     <script src="/_sdk/data_sdk.js"></script>
     <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore-compat.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap"
         rel="stylesheet">
     <!-- Firebase Initialization - will be done in script.js -->
@@ -243,7 +243,9 @@
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                    </svg><span>Senarai Admin</span> </button>
+                    </svg><span>Senarai Admin</span>
+                </button>
+
                 <button onclick="showPage('tetapan')"
                     class="sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all"
                     data-page="tetapan">
@@ -252,7 +254,8 @@
                             d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg><span>Tetapan Portal</span> </button>
+                    </svg><span>Tetapan Portal</span>
+                </button>
             </nav>
             <div class="p-4 border-t border-indigo-700">
                 <div class="flex items-center justify-between px-4 py-2">
@@ -349,26 +352,26 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
                     <!-- Jam & Waktu Card (High Visibility) -->
                     <div
-                        class="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-3xl p-6 shadow-xl text-white flex flex-col justify-between min-h-[160px] transform hover:scale-[1.05] transition-all col-span-1 lg:col-span-2">
+                        class="md:hidden bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl p-4 shadow-xl text-white flex flex-col justify-between min-h-[110px] transform hover:scale-[1.05] transition-all col-span-1">
                         <div class="flex justify-between items-start">
                             <div
-                                class="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center">
-                                <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                class="w-9 h-9 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center">
+                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
                             </div>
                             <div class="text-right">
-                                <span class="text-[10px] font-bold uppercase tracking-widest opacity-80 block">Waktu
+                                <span class="text-[9px] font-bold uppercase tracking-widest opacity-80 block">Waktu
                                     Sistem</span>
-                                <span class="text-[10px] font-bold uppercase tracking-widest opacity-80">Sekarang</span>
+                                <span class="text-[9px] font-bold uppercase tracking-widest opacity-80">Sekarang</span>
                             </div>
                         </div>
                         <div>
                             <span id="dash-clock-big"
                                 class="text-5xl font-black block tracking-tighter leading-none">00:00:00</span>
                             <span id="dash-date-big"
-                                class="text-xs font-semibold opacity-90 mt-2 block tracking-wide uppercase">Memuatkan...</span>
+                                class="text-[10px] font-semibold opacity-90 mt-1 block tracking-wide uppercase">Memuatkan...</span>
                         </div>
                     </div>
                     <div class="bg-white rounded-2xl p-6 shadow-sm card-hover transition-all">
@@ -423,17 +426,154 @@
                         <p class="text-3xl font-bold text-slate-800" id="stat-peralatan">0</p>
                         <p class="text-slate-500 text-sm">Jumlah Peralatan</p>
                     </div>
-                </div><!-- Recent Applications -->
-                <div class="bg-white rounded-2xl shadow-sm p-6">
+                </div>
+                <!-- Recent Applications -->
+                <div class="bg-white rounded-2xl shadow-sm p-6 mb-8">
                     <div class="flex items-center justify-between mb-6">
-                        <h3 class="text-lg font-semibold text-slate-800">Permohonan Terkini</h3><button
-                            onclick="showPage('permohonan')"
+                        <h3 class="text-lg font-semibold text-slate-800">Permohonan Terkini</h3>
+                        <button onclick="showPage('permohonan')"
                             class="text-indigo-600 hover:text-indigo-700 text-sm font-medium">Lihat Semua →</button>
                     </div>
                     <div id="recent-applications" class="space-y-4">
                         <p class="text-slate-400 text-center py-8">Tiada permohonan terkini</p>
                     </div>
                 </div>
+
+                <!-- Usage Calendar Section -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
+                    <!-- Calendar Card -->
+                    <div
+                        class="lg:col-span-8 bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden flex flex-col">
+                        <div
+                            class="p-6 border-b border-slate-50 flex items-center justify-between bg-gradient-to-r from-slate-50/50 to-white">
+                            <div class="flex items-center gap-3">
+                                <div
+                                    class="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2v12a2 2 0 00-2 2z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 class="text-lg font-bold text-slate-800">Kalendar Penggunaan</h3>
+                                    <p class="text-xs text-slate-500">Jadual tempahan dewan & peralatan</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2 bg-slate-100 p-1 rounded-xl">
+                                <button onclick="changeCalendarMonth(-1)"
+                                    class="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all text-slate-600">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M15 19l-7-7 7-7" />
+                                    </svg>
+                                </button>
+                                <span id="calendar-month-year"
+                                    class="px-3 py-1 text-sm font-bold text-slate-700 min-w-[120px] text-center">Mac
+                                    2026</span>
+                                <button onclick="changeCalendarMonth(1)"
+                                    class="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all text-slate-600">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="p-6 flex-1">
+                            <div class="grid grid-cols-7 gap-px mb-2">
+                                <div
+                                    class="text-center text-[10px] font-black text-red-500 uppercase tracking-widest py-2">
+                                    Ahad</div>
+                                <div
+                                    class="text-center text-[10px] font-black text-slate-400 uppercase tracking-widest py-2">
+                                    Isnin</div>
+                                <div
+                                    class="text-center text-[10px] font-black text-slate-400 uppercase tracking-widest py-2">
+                                    Selasa</div>
+                                <div
+                                    class="text-center text-[10px] font-black text-slate-400 uppercase tracking-widest py-2">
+                                    Rabu</div>
+                                <div
+                                    class="text-center text-[10px] font-black text-slate-400 uppercase tracking-widest py-2">
+                                    Khamis</div>
+                                <div
+                                    class="text-center text-[10px] font-black text-slate-400 uppercase tracking-widest py-2">
+                                    Jumaat</div>
+                                <div
+                                    class="text-center text-[10px] font-black text-blue-500 uppercase tracking-widest py-2">
+                                    Sabtu</div>
+                            </div>
+                            <div id="calendar-grid"
+                                class="grid grid-cols-7 gap-px bg-slate-100 border border-slate-100">
+                                <!-- Calendar days dynamically generated here -->
+                            </div>
+                        </div>
+                        <div
+                            class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex flex-wrap gap-4 text-[10px] font-bold uppercase tracking-wider">
+                            <div class="flex items-center gap-2 text-indigo-600">
+                                <span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
+                                <span>Permohonan Dewan</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-purple-600">
+                                <span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
+                                <span>Peralatan Shj</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-amber-600">
+                                <span class="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-sm shadow-amber-200"></span>
+                                <span>Hari Ini</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Side Info Card (Upcoming) -->
+                    <div class="lg:col-span-4 space-y-6">
+                        <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6">
+                            <h3
+                                class="text-sm font-black text-slate-800 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                                Tempahan Hari Ini
+                            </h3>
+                            <div id="calendar-today-events" class="space-y-3">
+                                <p class="text-xs text-slate-400 text-center py-4 italic">Tiada tempahan hari ini</p>
+                            </div>
+                        </div>
+
+                        <div
+                            class="bg-gradient-to-br from-indigo-900 to-indigo-800 rounded-3xl shadow-xl p-6 text-white relative overflow-hidden">
+                            <div class="relative z-10">
+                                <h4 class="text-xs font-bold uppercase tracking-widest opacity-70 mb-1">Status
+                                    Penggunaan</h4>
+                                <p class="text-2xl font-black mb-4">Analisis Bulanan</p>
+                                <div class="space-y-4">
+                                    <div>
+                                        <div class="flex justify-between text-[10px] font-bold uppercase mb-1">
+                                            <span>Keaktifan Dewan</span>
+                                            <span id="usage-percent-dewan">0%</span>
+                                        </div>
+                                        <div class="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                                            <div id="usage-bar-dewan"
+                                                class="h-full bg-amber-400 rounded-full transition-all duration-1000"
+                                                style="width: 0%"></div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="flex justify-between text-[10px] font-bold uppercase mb-1">
+                                            <span>Peralatan Dikeluar</span>
+                                            <span id="usage-percent-peralatan">0%</span>
+                                        </div>
+                                        <div class="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                                            <div id="usage-bar-peralatan"
+                                                class="h-full bg-indigo-400 rounded-full transition-all duration-1000"
+                                                style="width: 0%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-white/5 rounded-full blur-3xl"></div>
+                        </div>
+                    </div>
+                </div>
+
 
                 <!--DASHBOARD PAGE END-->
 
@@ -1320,63 +1460,304 @@
                                     <span id="sheets-status-text" class="text-sm font-medium text-slate-600">Belum
                                         dikonfigurasi</span>
                                 </div>
-                                <button onclick="testGoogleSheetsConnection()"
-                                    class="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
+                                <button disabled title="Hubungi pentadbir sistem untuk test sambungan"
+                                    class="text-sm text-slate-300 font-medium cursor-not-allowed">
                                     Test Sambungan
                                 </button>
                             </div>
                         </div>
 
-                        <!-- Sync Actions -->
+                        <!-- Sync Actions (Disabled - Hubungi Pentadbir) -->
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <button onclick="syncDataToSheets()"
-                                class="flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl font-bold transition-all shadow-md active:scale-95">
+                            <div title="Fungsi ini dikunci. Hubungi pentadbir sistem."
+                                class="flex items-center justify-center gap-3 px-6 py-4 bg-slate-200 text-slate-400 rounded-xl font-bold cursor-not-allowed select-none opacity-60">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                                 </svg>
                                 Export ke Google Sheets
-                            </button>
-                            <button onclick="loadDataFromSheets()"
-                                class="flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-bold transition-all shadow-md active:scale-95">
+                            </div>
+                            <div title="Fungsi ini dikunci. Hubungi pentadbir sistem."
+                                class="flex items-center justify-center gap-3 px-6 py-4 bg-slate-200 text-slate-400 rounded-xl font-bold cursor-not-allowed select-none opacity-60">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
                                 </svg>
                                 Import dari Google Sheets
-                            </button>
-                        </div>
-
-                        <!-- Info Box -->
-                        <div class="bg-green-50 p-4 rounded-xl border border-green-200">
-                            <p class="text-xs text-green-800 leading-relaxed">
-                                📊 <strong>Cara Setup:</strong> Buka fail <code
-                                    class="bg-green-100 px-1 rounded">GOOGLE_SHEETS_SETUP.md</code>
-                                untuk panduan lengkap menyambungkan ke Google Sheets. Anda perlu deploy Google Apps
-                                Script dan masukkan URL ke dalam
-                                <code class="bg-green-100 px-1 rounded">script.js</code>.
-                            </p>
-                        </div>
-
-                        <!-- Auto Sync Toggle -->
-                        <div
-                            class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
-                            <div>
-                                <p class="font-medium text-slate-800">Auto-Sync ke Google Sheets</p>
-                                <p class="text-xs text-slate-500">Data akan auto-sync setiap kali ada perubahan</p>
                             </div>
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" id="auto-sync-toggle" class="sr-only peer" checked
-                                    onchange="toggleAutoSync()">
+                        </div>
+
+
+                        <!-- Auto Sync Toggle (Disabled) -->
+                        <div
+                            class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200 opacity-60">
+                            <div>
+                                <p class="font-medium text-slate-500">Auto-Sync ke Google Sheets</p>
+                                <p class="text-xs text-slate-400">Tetapan ini diurus oleh pentadbir sistem</p>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-not-allowed">
+                                <!-- Auto Sync Toggle (Disabled) -->
                                 <div
-                                    class="w-11 h-6 bg-slate-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600">
+                                    class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200 opacity-60">
+                                    <div>
+                                        <p class="font-medium text-slate-500">Auto-Sync ke Google Sheets</p>
+                                        <p class="text-xs text-slate-400">Tetapan ini diurus oleh pentadbir sistem</p>
+                                    </div>
+                                    <label class="relative inline-flex items-center cursor-not-allowed">
+                                        <input type="checkbox" id="auto-sync-toggle" class="sr-only peer" checked
+                                            disabled>
+                                        <div
+                                            class="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-400">
+                                        </div>
+                                    </label>
                                 </div>
-                            </label>
+                        </div>
+
+                        <!-- BUTANG ADVANCED -->
+                        <div class="mt-8 pt-6 border-t border-slate-100 flex flex-col items-center">
+                            <button onclick="requireAdminPin('toggle_advanced')"
+                                class="flex items-center gap-3 px-8 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full font-bold transition-all group">
+                                <svg class="w-5 h-5 text-slate-400 group-hover:rotate-45 transition-transform"
+                                    fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                                <span>PENGURUSAN ADVANCED</span>
+                                <svg id="advanced-toggle-arrow" class="w-4 h-4 text-slate-400 ml-2 transition-transform"
+                                    fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+                            <p class="text-[10px] text-slate-400 mt-2 uppercase tracking-widest font-bold">Kawasan
+                                Terhad Admin Sahaja</p>
                         </div>
                     </div>
-                </div>
 
-            </div> <!-- Tetapan Page END -->
+                    <!-- ══════════════════════════════════════════════ -->
+                    <!-- KANDUNGAN ADVANCED (HIDDEN BY DEFAULT)        -->
+                    <!-- ══════════════════════════════════════════════ -->
+                    <div id="advanced-panel-content" class="hidden">
+
+                        <!-- ══════════════════════════════════════════════ -->
+                        <!-- BAHAGIAN BACKUP DATA                          -->
+                        <!-- ══════════════════════════════════════════════ -->
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mt-6">
+                            <div class="flex items-center gap-4 mb-6">
+                                <div
+                                    class="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                                    <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor"
+                                        viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 class="text-lg font-bold text-slate-800">Backup Data</h3>
+                                    <p class="text-sm text-slate-500">Simpan salinan data secara berkala atau manual</p>
+                                </div>
+                            </div>
+
+                            <!-- Maklumat backup terakhir -->
+                            <div
+                                class="flex items-center justify-between bg-slate-50 rounded-xl p-4 mb-5 border border-slate-100">
+                                <div class="flex items-center gap-3">
+                                    <div id="backup-status-dot" class="w-2.5 h-2.5 rounded-full bg-slate-300"></div>
+                                    <div>
+                                        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Backup
+                                            Terakhir</p>
+                                        <p id="backup-last-time" class="text-sm font-medium text-slate-700">Belum ada
+                                            backup
+                                        </p>
+                                    </div>
+                                </div>
+                                <span id="backup-schedule-badge"
+                                    class="text-xs font-bold px-3 py-1 rounded-full bg-slate-200 text-slate-500">
+                                    Manual
+                                </span>
+                            </div>
+
+                            <!-- Pilihan Jadual Backup -->
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Jadual
+                                Auto-Backup
+                            </p>
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5" id="backup-schedule-options">
+                                <button onclick="setBackupSchedule('manual')" id="sched-manual"
+                                    class="backup-sched-btn flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-indigo-500 bg-indigo-50 transition-all">
+                                    <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor"
+                                        viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5" />
+                                    </svg>
+                                    <span class="text-xs font-bold text-indigo-700">Manual</span>
+                                </button>
+                                <button onclick="setBackupSchedule('harian')" id="sched-harian"
+                                    class="backup-sched-btn flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-slate-200 hover:border-indigo-300 transition-all">
+                                    <svg class="w-6 h-6 text-slate-400" fill="none" stroke="currentColor"
+                                        viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M12 3v1m0 16v1m8.66-13l-.87.5M4.21 17.5l-.87.5M20.66 17.5l-.87-.5M4.21 6.5l-.87-.5M21 12h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707" />
+                                    </svg>
+                                    <span class="text-xs font-bold text-slate-500">Harian</span>
+                                </button>
+                                <button onclick="setBackupSchedule('mingguan')" id="sched-mingguan"
+                                    class="backup-sched-btn flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-slate-200 hover:border-indigo-300 transition-all">
+                                    <svg class="w-6 h-6 text-slate-400" fill="none" stroke="currentColor"
+                                        viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                    <span class="text-xs font-bold text-slate-500">Mingguan</span>
+                                </button>
+                                <button onclick="setBackupSchedule('bulanan')" id="sched-bulanan"
+                                    class="backup-sched-btn flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-slate-200 hover:border-indigo-300 transition-all">
+                                    <svg class="w-6 h-6 text-slate-400" fill="none" stroke="currentColor"
+                                        viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                    </svg>
+                                    <span class="text-xs font-bold text-slate-500">Bulanan</span>
+                                </button>
+                            </div>
+
+
+                            <!-- Butang Backup -->
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <!-- Drive Backup -->
+                                <button id="btn-drive-backup" onclick="runDriveBackup()"
+                                    class="flex items-center justify-center gap-2 px-5 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-95 text-white rounded-xl font-bold transition-all shadow-md">
+                                    <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 87.3 78" fill="currentColor">
+                                        <path
+                                            d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3L27.5 53H0c0 1.55.4 3.1 1.2 4.5z"
+                                            fill="#fff" />
+                                        <path d="M43.65 25L29.9 0c-1.35.8-2.5 1.9-3.3 3.3L1.2 48.5A9 9 0 000 53h27.5z"
+                                            fill="#fff" />
+                                        <path
+                                            d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75L86.1 57.5c.8-1.4 1.2-2.95 1.2-4.5H59.8l5.85 11.5z"
+                                            fill="#fff" />
+                                        <path d="M43.65 25L57.4 0H29.9z" fill="#fff" />
+                                        <path d="M59.8 53H87.3L73.55 29.3 59.8 53z" fill="#fff" />
+                                        <path
+                                            d="M59.8 53H27.5l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h51.8c1.6 0 3.15-.4 4.5-1.2z"
+                                            fill="#fff" />
+                                    </svg>
+                                    <span>Simpan ke Google Drive</span>
+                                </button>
+
+                                <!-- JSON Local -->
+                                <button onclick="runManualBackup()"
+                                    class="flex items-center justify-center gap-2 px-5 py-4 bg-white border-2 border-amber-400 hover:bg-amber-50 active:scale-95 text-amber-700 rounded-xl font-bold transition-all">
+                                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor"
+                                        viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                    </svg>
+                                    <span>Muat Turun JSON</span>
+                                </button>
+                            </div>
+
+                            <!-- Status hasil backup Drive -->
+                            <div id="drive-backup-result"
+                                class="hidden mt-3 p-3 bg-blue-50 border border-blue-200 rounded-xl">
+                                <p class="text-xs text-blue-600 font-semibold mb-1">✅ Backup berjaya disimpan ke Drive:
+                                </p>
+                                <a id="drive-backup-link" href="#" target="_blank"
+                                    class="text-xs text-blue-700 underline break-all font-mono">—</a>
+                                <p id="drive-backup-folder" class="text-[10px] text-blue-400 mt-1"></p>
+                            </div>
+
+                            <!-- ── GARIS PEMISAH ── -->
+                            <div class="border-t border-slate-100 my-5"></div>
+
+                            <!-- BAHAGIAN RESTORE -->
+                            <div class="flex items-center gap-3 mb-3">
+                                <svg class="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor"
+                                    viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                                <div>
+                                    <p class="font-semibold text-slate-700 text-sm">Pulihkan Data</p>
+                                    <p class="text-xs text-slate-400">Muat naik fail backup JSON untuk memulihkan data
+                                    </p>
+                                </div>
+                            </div>
+
+                            <label for="restore-file-input"
+                                class="flex flex-col items-center justify-center gap-2 w-full p-5 border-2 border-dashed border-red-300 rounded-xl bg-red-50 hover:bg-red-100 cursor-pointer transition-all group">
+                                <svg class="w-8 h-8 text-red-400 group-hover:text-red-600 transition-colors" fill="none"
+                                    stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3-3m0 0l3 3m-3-3v12" />
+                                </svg>
+                                <span class="text-sm font-bold text-red-600">Pilih fail backup (JSON)</span>
+                                <span class="text-xs text-red-400">DSK-backup-XXXX.json</span>
+                                <input type="file" id="restore-file-input" accept=".json" class="hidden"
+                                    onchange="restoreFromFile(this)">
+                            </label>
+
+                            <div id="restore-result"
+                                class="hidden mt-2 p-3 bg-green-50 border border-green-200 rounded-xl">
+                                <p id="restore-result-msg" class="text-xs text-green-700 font-semibold"></p>
+                            </div>
+
+                            <!-- BAHAGIAN LOG AKTIVITI -->
+                            <div class="border-t border-slate-100 my-5"></div>
+
+                            <button onclick="toggleLogPanel()"
+                                class="w-full flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-all group">
+                                <div class="flex items-center gap-3">
+                                    <svg class="w-5 h-5 text-indigo-500 flex-shrink-0" fill="none" stroke="currentColor"
+                                        viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                    </svg>
+                                    <div class="text-left">
+                                        <p class="font-bold text-slate-700 text-sm">Buku Log Aktiviti</p>
+                                        <p class="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Semak
+                                            Sejarah System</p>
+                                    </div>
+                                </div>
+                                <svg id="log-toggle-arrow" class="w-5 h-5 text-slate-400 transition-transform"
+                                    fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+
+                            <div id="log-panel-content" class="hidden mt-4 animate-scale">
+                                <div
+                                    class="max-h-60 overflow-y-auto border border-slate-100 rounded-xl bg-white shadow-inner">
+                                    <table class="w-full text-left text-xs">
+                                        <thead class="bg-slate-50 sticky top-0 border-b border-slate-100 z-10">
+                                            <tr>
+                                                <th
+                                                    class="px-4 py-2 font-bold text-slate-500 uppercase tracking-tighter">
+                                                    Masa</th>
+                                                <th
+                                                    class="px-4 py-2 font-bold text-slate-500 uppercase tracking-tighter">
+                                                    Aktiviti</th>
+                                                <th
+                                                    class="px-4 py-2 font-bold text-slate-500 uppercase tracking-tighter">
+                                                    Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="backup-log-table">
+                                            <tr>
+                                                <td colspan="3" class="px-4 py-8 text-center text-slate-400">Tiada log
+                                                    direkodkan</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div> <!-- Advanced Content END -->
+
+                </div> <!-- Tetapan Page END -->
+
         </main> <!-- admin-content -->
     </div> <!-- app -->
     <!-- Modal Permohonan -->
@@ -1965,43 +2346,71 @@
                 <!-- Success State Container -->
                 <div id="user-success-container"
                     class="hidden p-8 pt-4 pb-12 flex flex-col items-center text-center animate-scale">
-                    <div
-                        class="w-32 h-32 bg-green-100 rounded-full flex items-center justify-center mb-8 shadow-inner overflow-hidden relative">
-                        <!-- Animated Green Background pulse -->
-                        <div class="absolute inset-0 bg-green-200 animate-ping opacity-20"></div>
-                        <svg class="w-20 h-20 text-green-600 relative z-10" fill="none" stroke="currentColor"
-                            viewBox="0 0 24 24">
-                            <path class="animate-checkmark" stroke-linecap="round" stroke-linejoin="round"
-                                stroke-width="3" d="M5 13l4 4L19 7" />
-                        </svg>
-                    </div>
 
-                    <h2 class="text-3xl font-extrabold text-slate-800 mb-3">Permohonan Berjaya!</h2>
-                    <p class="text-slate-600 mb-8 max-w-sm leading-relaxed">
-                        Terima kasih! Permohonan anda telah selamat diterima oleh sistem kami dan sedang menunggu untuk
-                        diproses.
-                    </p>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-md">
-                        <button onclick="resetUserFormForNew()"
-                            class="flex items-center justify-center gap-2 px-6 py-4 bg-white border-2 border-indigo-600 text-indigo-600 rounded-xl font-bold hover:bg-indigo-50 transition-all shadow-sm">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M12 4v16m8-8H4" />
+                    <!-- Fasa 1: Loading (jana no. permohonan) -->
+                    <div id="success-loading-phase" class="flex flex-col items-center">
+                        <div class="w-20 h-20 rounded-full bg-indigo-50 flex items-center justify-center mb-5">
+                            <svg class="animate-spin w-10 h-10 text-indigo-500" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                    stroke-width="3"></circle>
+                                <path class="opacity-75" fill="currentColor"
+                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
                             </svg>
-                            Mohon Semula
-                        </button>
-                        <button onclick="closeUserForm()"
-                            class="flex items-center justify-center gap-2 px-6 py-4 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-md">
-                            Tutup
-                        </button>
+                        </div>
+                        <p class="text-slate-600 text-sm font-medium">Sedang menjana no. permohonan...</p>
+                        <p class="text-slate-400 text-xs mt-1">Sila tunggu sebentar</p>
                     </div>
 
-                    <div class="mt-8 pt-8 border-t border-slate-100 w-full">
-                        <p class="text-xs text-slate-400 uppercase tracking-widest font-semibold">Dewan Sri Kinabatangan
+                    <!-- Fasa 2: Berjaya (selepas dapat no. permohonan) -->
+                    <div id="success-done-phase" class="hidden flex flex-col items-center w-full">
+                        <div
+                            class="w-32 h-32 bg-green-100 rounded-full flex items-center justify-center mb-6 shadow-inner overflow-hidden relative">
+                            <div class="absolute inset-0 bg-green-200 animate-ping opacity-20"></div>
+                            <svg class="w-20 h-20 text-green-600 relative z-10" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path class="animate-checkmark" stroke-linecap="round" stroke-linejoin="round"
+                                    stroke-width="3" d="M5 13l4 4L19 7" />
+                            </svg>
+                        </div>
+
+                        <h2 class="text-3xl font-extrabold text-slate-800 mb-2">Permohonan Berjaya!</h2>
+                        <p class="text-slate-500 mb-5 max-w-sm leading-relaxed text-sm">
+                            Terima kasih! Permohonan anda telah selamat diterima dan sedang menunggu untuk diproses.
                         </p>
+
+                        <!-- No. Permohonan Card -->
+                        <div
+                            class="w-full max-w-xs bg-indigo-50 border border-indigo-200 rounded-2xl px-6 py-4 mb-6 shadow-sm">
+                            <p class="text-xs text-indigo-400 font-bold uppercase tracking-widest mb-1">No. Permohonan
+                                Anda</p>
+                            <p id="success-no-permohonan"
+                                class="text-2xl font-black text-indigo-700 tracking-tight font-mono">—</p>
+                            <p class="text-xs text-slate-400 mt-1">Simpan nombor ini untuk rujukan anda</p>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-md">
+                            <button onclick="resetUserFormForNew()"
+                                class="flex items-center justify-center gap-2 px-6 py-4 bg-white border-2 border-indigo-600 text-indigo-600 rounded-xl font-bold hover:bg-indigo-50 transition-all shadow-sm">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M12 4v16m8-8H4" />
+                                </svg>
+                                Mohon Semula
+                            </button>
+                            <button onclick="closeUserForm()"
+                                class="flex items-center justify-center gap-2 px-6 py-4 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-md">
+                                Tutup
+                            </button>
+                        </div>
+
+                        <div class="mt-8 pt-8 border-t border-slate-100 w-full">
+                            <p class="text-xs text-slate-400 uppercase tracking-widest font-semibold">Dewan Sri
+                                Kinabatangan</p>
+                        </div>
                     </div>
+
                 </div>
+
 
             </div>
         </div>
@@ -2541,6 +2950,198 @@
     </div>
     <!-- Load Main Script -->
     <script src="script.js"></script>
+
+    <!-- ============================================================ -->
+    <!-- MODAL PIN ADMIN                                               -->
+    <!-- ============================================================ -->
+    <div id="modal-admin-pin" class="fixed inset-0 z-[99999] hidden">
+        <!-- Backdrop blur -->
+        <div class="absolute inset-0 bg-slate-900/70 backdrop-blur-sm" onclick="closeAdminPin()"></div>
+
+        <div class="absolute inset-0 flex items-center justify-center p-4 pointer-events-none">
+            <div
+                class="bg-white rounded-3xl shadow-2xl w-full max-w-xs pointer-events-auto overflow-hidden animate-scale">
+
+                <!-- Header -->
+                <div class="bg-gradient-to-br from-indigo-600 to-violet-700 px-6 pt-8 pb-6 text-center">
+                    <div class="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-white font-bold text-lg">Kawasan Terhad</h3>
+                    <p class="text-indigo-200 text-xs mt-1">Masukkan PIN Admin untuk teruskan</p>
+                </div>
+
+                <!-- PIN Display -->
+                <div class="px-6 pt-6 pb-2">
+                    <div id="pin-dots" class="flex justify-center gap-3 mb-6">
+                        <span class="pin-dot w-4 h-4 rounded-full border-2 border-slate-300 transition-all"></span>
+                        <span class="pin-dot w-4 h-4 rounded-full border-2 border-slate-300 transition-all"></span>
+                        <span class="pin-dot w-4 h-4 rounded-full border-2 border-slate-300 transition-all"></span>
+                        <span class="pin-dot w-4 h-4 rounded-full border-2 border-slate-300 transition-all"></span>
+                    </div>
+
+                    <!-- Error msg -->
+                    <p id="pin-error" class="text-red-500 text-xs text-center mb-3 hidden">PIN tidak betul. Cuba lagi.
+                    </p>
+
+                    <!-- Numpad -->
+                    <div class="grid grid-cols-3 gap-2">
+                        <button onclick="pinInput('1')"
+                            class="pin-key py-4 rounded-xl bg-slate-50 hover:bg-indigo-50 active:bg-indigo-100 text-slate-700 font-bold text-lg transition-all">1</button>
+                        <button onclick="pinInput('2')"
+                            class="pin-key py-4 rounded-xl bg-slate-50 hover:bg-indigo-50 active:bg-indigo-100 text-slate-700 font-bold text-lg transition-all">2</button>
+                        <button onclick="pinInput('3')"
+                            class="pin-key py-4 rounded-xl bg-slate-50 hover:bg-indigo-50 active:bg-indigo-100 text-slate-700 font-bold text-lg transition-all">3</button>
+                        <button onclick="pinInput('4')"
+                            class="pin-key py-4 rounded-xl bg-slate-50 hover:bg-indigo-50 active:bg-indigo-100 text-slate-700 font-bold text-lg transition-all">4</button>
+                        <button onclick="pinInput('5')"
+                            class="pin-key py-4 rounded-xl bg-slate-50 hover:bg-indigo-50 active:bg-indigo-100 text-slate-700 font-bold text-lg transition-all">5</button>
+                        <button onclick="pinInput('6')"
+                            class="pin-key py-4 rounded-xl bg-slate-50 hover:bg-indigo-50 active:bg-indigo-100 text-slate-700 font-bold text-lg transition-all">6</button>
+                        <button onclick="pinInput('7')"
+                            class="pin-key py-4 rounded-xl bg-slate-50 hover:bg-indigo-50 active:bg-indigo-100 text-slate-700 font-bold text-lg transition-all">7</button>
+                        <button onclick="pinInput('8')"
+                            class="pin-key py-4 rounded-xl bg-slate-50 hover:bg-indigo-50 active:bg-indigo-100 text-slate-700 font-bold text-lg transition-all">8</button>
+                        <button onclick="pinInput('9')"
+                            class="pin-key py-4 rounded-xl bg-slate-50 hover:bg-indigo-50 active:bg-indigo-100 text-slate-700 font-bold text-lg transition-all">9</button>
+                        <button onclick="closeAdminPin()"
+                            class="py-4 rounded-xl bg-red-50 hover:bg-red-100 text-red-400 font-bold text-xs transition-all">Batal</button>
+                        <button onclick="pinInput('0')"
+                            class="pin-key py-4 rounded-xl bg-slate-50 hover:bg-indigo-50 active:bg-indigo-100 text-slate-700 font-bold text-lg transition-all">0</button>
+                        <button onclick="pinBackspace()"
+                            class="py-4 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-500 font-bold transition-all">
+                            <svg class="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M3 12l6.414 6.414a2 2 0 001.414.586H19a2 2 0 002-2V7a2 2 0 00-2-2h-8.172a2 2 0 00-1.414.586L3 12z" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="px-6 pb-6 pt-2 text-center">
+                    <p class="text-[10px] text-slate-300">Sesi PIN akan tamat apabila log keluar</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ── PIN ADMIN CONFIG ──────────────────────────────────────
+        const ADMIN_PIN = '1234'; // ← Tukar PIN di sini
+        // ─────────────────────────────────────────────────────────
+
+        let _pinTarget = null;
+        let _pinCurrent = '';
+
+        function requireAdminPin(targetPage) {
+            // Jika sudah verified dalam sesi ini, terus buka
+            if (sessionStorage.getItem('adminPinVerified') === 'true') {
+                if (targetPage === 'toggle_advanced') {
+                    toggleAdvancedPanel();
+                } else {
+                    showPage(targetPage);
+                }
+                return;
+            }
+            _pinTarget = targetPage;
+            _pinCurrent = '';
+            updatePinDots();
+            document.getElementById('pin-error').classList.add('hidden');
+            document.getElementById('modal-admin-pin').classList.remove('hidden');
+        }
+
+        function closeAdminPin() {
+            document.getElementById('modal-admin-pin').classList.add('hidden');
+            _pinTarget = null;
+            _pinCurrent = '';
+            updatePinDots();
+        }
+
+        function pinInput(digit) {
+            if (_pinCurrent.length >= 4) return;
+            _pinCurrent += digit;
+            updatePinDots();
+            document.getElementById('pin-error').classList.add('hidden');
+
+            if (_pinCurrent.length === 4) {
+                setTimeout(() => verifyPin(), 150);
+            }
+        }
+
+        function pinBackspace() {
+            _pinCurrent = _pinCurrent.slice(0, -1);
+            updatePinDots();
+            document.getElementById('pin-error').classList.add('hidden');
+        }
+
+        function verifyPin() {
+            if (_pinCurrent === ADMIN_PIN) {
+                sessionStorage.setItem('adminPinVerified', 'true');
+                document.getElementById('modal-admin-pin').classList.add('hidden');
+
+                if (_pinTarget === 'toggle_advanced') {
+                    toggleAdvancedPanel();
+                } else {
+                    showPage(_pinTarget);
+                }
+
+                _pinTarget = null;
+                _pinCurrent = '';
+                updatePinDots();
+            } else {
+                // Gegar modal — PIN salah
+                const modal = document.querySelector('#modal-admin-pin > div:last-child > div');
+                modal.style.animation = 'none';
+                modal.offsetHeight; // reflow
+                modal.style.animation = 'pinShake 0.4s ease';
+                document.getElementById('pin-error').classList.remove('hidden');
+                _pinCurrent = '';
+                updatePinDots();
+            }
+        }
+
+        function updatePinDots() {
+            document.querySelectorAll('.pin-dot').forEach((dot, i) => {
+                if (i < _pinCurrent.length) {
+                    dot.classList.add('bg-indigo-600', 'border-indigo-600');
+                    dot.classList.remove('border-slate-300');
+                } else {
+                    dot.classList.remove('bg-indigo-600', 'border-indigo-600');
+                    dot.classList.add('border-slate-300');
+                }
+            });
+        }
+    </script>
+
+    <style>
+        @keyframes pinShake {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            20% {
+                transform: translateX(-8px);
+            }
+
+            40% {
+                transform: translateX(8px);
+            }
+
+            60% {
+                transform: translateX(-5px);
+            }
+
+            80% {
+                transform: translateX(5px);
+            }
+        }
+    </style>
+
 </body>
 
 </html>

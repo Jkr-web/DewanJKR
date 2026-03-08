@@ -48,18 +48,25 @@ function startClock() {
 }
 
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', startClock);
+    document.addEventListener('DOMContentLoaded', () => {
+        startClock();
+        if (typeof checkSystemIntegrity === 'function') checkSystemIntegrity();
+    });
 } else {
     startClock();
+    if (typeof checkSystemIntegrity === 'function') checkSystemIntegrity();
 }
 
 
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwijGRohY9lP0Jg2Pi99F8KiiwdldFHJjsWSwQTisDNvOxT1EBfNxvTR_YLz8SNxPuggQ/exec';
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxmbW5qrWAXdwERdRj_eGCOHTXxK1q7pfXEG3UVZw0JdUGuwc29qinjUpNqyMXhDAeFEQ/exec';
 const AUTH_TOKEN = 'CInta_Mtaa2026_diRkhsg';
 
 const GoogleSheetsDB = {
     isConfigured: function () {
-        return GOOGLE_SCRIPT_URL && GOOGLE_SCRIPT_URL !== 'YOUR_GOOGLE_SCRIPT_URL_HERE';
+        return !!(GOOGLE_SCRIPT_URL &&
+            GOOGLE_SCRIPT_URL.trim() !== '' &&
+            GOOGLE_SCRIPT_URL.startsWith('https://script.google.com/macros/s/') &&
+            !GOOGLE_SCRIPT_URL.includes('YOUR_SCRIPT_ID'));
     },
 
     testConnection: async function () {
@@ -263,9 +270,9 @@ async function ensureFirebaseSDKs(timeoutMs = 10000) {
     }
 
     const urls = [
-        'https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js',
-        'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js',
-        'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js'
+        'https://www.gstatic.com/firebasejs/11.6.1/firebase-app-compat.js',
+        'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth-compat.js',
+        'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore-compat.js'
     ];
 
     function loadScript(url) {
@@ -488,6 +495,366 @@ document.getElementById('form-user-permohonan').addEventListener('submit', async
 });
 */
 
+// ============================================================
+// SISTEM BACKUP DATA
+// ============================================================
+function toggleAdvancedPanel() {
+    const panel = document.getElementById('advanced-panel-content');
+    const arrow = document.getElementById('advanced-toggle-arrow');
+    if (!panel) return;
+
+    if (panel.classList.contains('hidden')) {
+        panel.classList.remove('hidden');
+        panel.classList.add('animate-scale'); // Use existing scale animation
+        if (arrow) arrow.style.transform = 'rotate(180deg)';
+        setTimeout(() => {
+            panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+    } else {
+        panel.classList.add('hidden');
+        if (arrow) arrow.style.transform = 'rotate(0deg)';
+    }
+}
+
+function toggleLogPanel() {
+    const panel = document.getElementById('log-panel-content');
+    const arrow = document.getElementById('log-toggle-arrow');
+    if (!panel) return;
+
+    if (panel.classList.contains('hidden')) {
+        panel.classList.remove('hidden');
+        if (arrow) arrow.style.transform = 'rotate(180deg)';
+        setTimeout(() => {
+            panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 100);
+    } else {
+        panel.classList.add('hidden');
+        if (arrow) arrow.style.transform = 'rotate(0deg)';
+    }
+}
+
+const BACKUP_INTERVALS = {
+    manual: null,
+    harian: 1 * 24 * 60 * 60 * 1000,        // 1 hari
+    mingguan: 7 * 24 * 60 * 60 * 1000,        // 7 hari
+    bulanan: 30 * 24 * 60 * 60 * 1000        // 30 hari
+};
+
+function setBackupSchedule(type) {
+    localStorage.setItem('backupSchedule', type);
+    updateBackupUI(type);
+    showToast(`✅ Jadual backup ditetapkan: ${type.charAt(0).toUpperCase() + type.slice(1)}`);
+}
+
+function updateBackupUI(type) {
+    // Kemaskini butang aktif
+    document.querySelectorAll('.backup-sched-btn').forEach(btn => {
+        btn.className = 'backup-sched-btn flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-slate-200 hover:border-indigo-300 transition-all';
+        btn.querySelector('svg').classList.replace('text-indigo-600', 'text-slate-400');
+        btn.querySelector('span').className = 'text-xs font-bold text-slate-500';
+    });
+    const active = document.getElementById(`sched-${type}`);
+    if (active) {
+        active.className = 'backup-sched-btn flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-indigo-500 bg-indigo-50 transition-all';
+        active.querySelector('svg').classList.replace('text-slate-400', 'text-indigo-600');
+        active.querySelector('span').className = 'text-xs font-bold text-indigo-700';
+    }
+
+    // Kemaskini badge
+    const badge = document.getElementById('backup-schedule-badge');
+    if (badge) {
+        const labels = { manual: 'Manual', harian: 'Auto · Harian', mingguan: 'Auto · Mingguan', bulanan: 'Auto · Bulanan' };
+        const colors = { manual: 'bg-slate-200 text-slate-500', harian: 'bg-green-100 text-green-700', mingguan: 'bg-blue-100 text-blue-700', bulanan: 'bg-purple-100 text-purple-700' };
+        badge.textContent = labels[type] || 'Manual';
+        badge.className = `text-xs font-bold px-3 py-1 rounded-full ${colors[type] || colors.manual}`;
+    }
+
+    // Kemaskini masa backup terakhir
+    const lastTs = localStorage.getItem('lastBackupTime');
+    const lastEl = document.getElementById('backup-last-time');
+    const dotEl = document.getElementById('backup-status-dot');
+    if (lastTs && lastEl) {
+        const d = new Date(parseInt(lastTs));
+        lastEl.textContent = d.toLocaleString('ms-MY', { dateStyle: 'medium', timeStyle: 'short' });
+        if (dotEl) dotEl.className = 'w-2.5 h-2.5 rounded-full bg-green-500';
+    }
+}
+
+function runManualBackup() {
+    try {
+        const data = JSON.parse(localStorage.getItem('dewanData') || '[]');
+        const settings = {};
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key !== 'dewanData') settings[key] = localStorage.getItem(key);
+        }
+
+        const backup = {
+            version: '1.0',
+            portal: 'Portal Pengurusan Dewan Sri Kinabatangan',
+            timestamp: new Date().toISOString(),
+            totalRekod: data.length,
+            data,
+            settings
+        };
+
+        const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `DSK-backup-${ts}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        // Simpan masa backup terakhir
+        localStorage.setItem('lastBackupTime', Date.now().toString());
+        updateBackupUI(localStorage.getItem('backupSchedule') || 'manual');
+
+        logBackupActivity('Backup Manual (JSON)', 'Berjaya');
+        showToast('✅ Backup berjaya dimuat turun!');
+        console.log(`💾 Backup created: DSK-backup-${ts}.json (${data.length} rekod)`);
+    } catch (err) {
+        logBackupActivity('Backup Manual (JSON)', 'Gagal: ' + err.message);
+        showToast('❌ Gagal membuat backup');
+        console.error('Backup error:', err);
+    }
+}
+
+function checkAutoBackup() {
+    const schedule = localStorage.getItem('backupSchedule') || 'manual';
+    if (schedule === 'manual') return;
+
+    const interval = BACKUP_INTERVALS[schedule];
+    const lastTs = parseInt(localStorage.getItem('lastBackupTime') || '0');
+    const now = Date.now();
+
+    if (!lastTs || (now - lastTs) >= interval) {
+        console.log(`⏰ Auto-backup triggered: ${schedule}`);
+        // Guna Drive jika dikonfigurasi, else JSON
+        if (GOOGLE_SCRIPT_URL && GOOGLE_SCRIPT_URL.startsWith('https://script.google.com')) {
+            runDriveBackup(true); // silent mode
+        } else {
+            runManualBackup();
+        }
+    }
+}
+
+async function runDriveBackup(silent = false) {
+    if (!GOOGLE_SCRIPT_URL || !GOOGLE_SCRIPT_URL.startsWith('https://script.google.com')) {
+        showToast('⚠️ Google Script URL tidak dikonfigurasi. Guna Muat Turun JSON.');
+        return;
+    }
+
+    const btn = document.getElementById('btn-drive-backup');
+    const resultDiv = document.getElementById('drive-backup-result');
+    const resultLink = document.getElementById('drive-backup-link');
+    const resultFold = document.getElementById('drive-backup-folder');
+
+    if (btn && !silent) {
+        btn.disabled = true;
+        btn.innerHTML = `<svg class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+        </svg><span>Menyimpan ke Drive...</span>`;
+    }
+
+    try {
+        const data = JSON.parse(localStorage.getItem('dewanData') || '[]');
+        const schedule = localStorage.getItem('backupSchedule') || 'manual';
+
+        const backupPayload = {
+            version: '1.0',
+            portal: 'Portal Pengurusan Dewan Sri Kinabatangan',
+            timestamp: new Date().toISOString(),
+            totalRekod: data.length,
+            data
+        };
+
+        const response = await fetch(GOOGLE_SCRIPT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({
+                action: 'backupToDrive',
+                backupData: backupPayload,
+                schedule,
+                token: AUTH_TOKEN
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Simpan masa backup
+            localStorage.setItem('lastBackupTime', Date.now().toString());
+            updateBackupUI(schedule);
+
+            logBackupActivity('Backup Google Drive', 'Berjaya');
+            if (!silent) {
+                // Tunjuk link fail Drive
+                if (resultDiv) resultDiv.classList.remove('hidden');
+                if (resultLink) { resultLink.href = result.fileUrl; resultLink.textContent = result.fileName; }
+                if (resultFold) resultFold.textContent = `📁 ${result.folder}`;
+                showToast('✅ Backup disimpan ke Google Drive!');
+            }
+            console.log(`💾 Drive backup: ${result.fileName} → ${result.folder}`);
+        } else {
+            throw new Error(result.error || 'Ralat tidak diketahui');
+        }
+
+    } catch (err) {
+        console.error('Drive backup error:', err);
+        logBackupActivity('Backup Google Drive', 'Gagal: ' + err.message);
+        if (!silent) showToast(`❌ Gagal backup ke Drive: ${err.message}`);
+    } finally {
+        if (btn && !silent) {
+            btn.disabled = false;
+            btn.innerHTML = `<svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 87.3 78" fill="currentColor">
+                <path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3L27.5 53H0c0 1.55.4 3.1 1.2 4.5z" fill="#fff"/>
+                <path d="M43.65 25L29.9 0c-1.35.8-2.5 1.9-3.3 3.3L1.2 48.5A9 9 0 000 53h27.5z" fill="#fff"/>
+                <path d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75L86.1 57.5c.8-1.4 1.2-2.95 1.2-4.5H59.8l5.85 11.5z" fill="#fff"/>
+                <path d="M43.65 25L57.4 0H29.9z" fill="#fff"/>
+                <path d="M59.8 53H87.3L73.55 29.3 59.8 53z" fill="#fff"/>
+                <path d="M59.8 53H27.5l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h51.8c1.6 0 3.15-.4 4.5-1.2z" fill="#fff"/>
+            </svg><span>Simpan ke Google Drive</span>`;
+        }
+    }
+}
+
+function initBackupUI() {
+    const schedule = localStorage.getItem('backupSchedule') || 'manual';
+    updateBackupUI(schedule);
+    checkAutoBackup();
+    renderBackupLogs();
+    checkSystemIntegrity();
+}
+
+function logBackupActivity(action, status) {
+    const logs = JSON.parse(localStorage.getItem('backupLogs') || '[]');
+    logs.unshift({
+        timestamp: new Date().toISOString(),
+        action: action,
+        status: status
+    });
+    // Simpan 20 log terakhir sahaja
+    localStorage.setItem('backupLogs', JSON.stringify(logs.slice(0, 20)));
+    renderBackupLogs();
+}
+
+function renderBackupLogs() {
+    const tableBody = document.getElementById('backup-log-table');
+    if (!tableBody) return;
+
+    const logs = JSON.parse(localStorage.getItem('backupLogs') || '[]');
+    if (logs.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="3" class="px-4 py-8 text-center text-slate-400">Tiada log direkodkan</td></tr>';
+        return;
+    }
+
+    tableBody.innerHTML = logs.map(log => {
+        const date = new Date(log.timestamp).toLocaleString('ms-MY', { dateStyle: 'short', timeStyle: 'short' });
+        const statusClass = log.status.includes('Gagal') ? 'text-red-500 font-bold' : 'text-green-600 font-bold';
+        return `
+            <tr class="border-b border-slate-50 hover:bg-white transition-colors">
+                <td class="px-4 py-3 text-slate-600 font-mono">${date}</td>
+                <td class="px-4 py-3 text-slate-800 font-medium">${log.action}</td>
+                <td class="px-4 py-3 ${statusClass}">${log.status}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function restoreFromFile(input, isRecovery = false) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        try {
+            const backup = JSON.parse(e.target.result);
+
+            // Validasi backup
+            if (!backup.data || !Array.isArray(backup.data)) {
+                throw new Error('Format fail tidak sah atau data utama hilang.');
+            }
+
+            // Pulihkan data
+            localStorage.setItem('dewanData', JSON.stringify(backup.data));
+
+            // Pulihkan tetapan jika ada
+            if (backup.settings) {
+                Object.keys(backup.settings).forEach(key => {
+                    localStorage.setItem(key, backup.settings[key]);
+                });
+            }
+
+            logBackupActivity('Pemulihan Data (Restore)', 'Berjaya (' + backup.totalRekod + ' rekod)');
+
+            if (isRecovery) {
+                alert('✅ Sistem berjaya dipulihkan. Halaman akan dimuat semula.');
+                window.location.reload();
+            } else {
+                const msgEl = document.getElementById('restore-result-msg');
+                const divEl = document.getElementById('restore-result');
+                if (divEl && msgEl) {
+                    divEl.classList.remove('hidden');
+                    msgEl.textContent = `✅ Berjaya memulihkan ${backup.totalRekod} rekod. Sila muat semula halaman.`;
+                }
+                showToast('✅ Data berjaya dipulihkan!');
+                setTimeout(() => window.location.reload(), 2000);
+            }
+
+        } catch (err) {
+            logBackupActivity('Pemulihan Data (Restore)', 'Gagal: ' + err.message);
+            alert('❌ Gagal memulihkan data: ' + err.message);
+        }
+    };
+    reader.readAsText(file);
+}
+
+function checkSystemIntegrity() {
+    const data = localStorage.getItem('dewanData');
+    const overlay = document.getElementById('recovery-overlay');
+
+    // Trigger recovery jika dewanData hilang atau format salah
+    let isCorrupted = false;
+    if (!data) {
+        // Jika data kosong tapi bukan pengguna baru (pernah ada backup atau login)
+        if (localStorage.getItem('isLoggedIn') === 'true' || localStorage.getItem('lastBackupTime')) {
+            isCorrupted = true;
+        }
+    } else {
+        try {
+            const parsed = JSON.parse(data);
+            if (!Array.isArray(parsed)) isCorrupted = true;
+        } catch (e) {
+            isCorrupted = true;
+        }
+    }
+
+    if (isCorrupted && overlay) {
+        overlay.classList.remove('hidden');
+    }
+}
+
+// ============================================================
+// SISTEM NOTIFIKASI — EMAIL & TELEGRAM
+// ============================================================
+async function sendNotification(action, payload) {
+    if (!GOOGLE_SCRIPT_URL || !GOOGLE_SCRIPT_URL.startsWith('https://script.google.com')) return;
+    try {
+        await fetch(GOOGLE_SCRIPT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({ ...payload, action, token: AUTH_TOKEN })
+        });
+        console.log(`📧 Notification sent: ${action}`);
+    } catch (err) {
+        console.warn('⚠️ Notification failed (non-critical):', err.message);
+    }
+}
+
+
 document.getElementById('form-permohonan').addEventListener('submit', async (e) => {
     e.preventDefault();
     console.log('🚀 Admin form submitted');
@@ -535,6 +902,10 @@ document.getElementById('form-permohonan').addEventListener('submit', async (e) 
 
         renderPermohonan();
         updateDashboard();
+
+        // 📧 Hantar notifikasi — permohonan baru diterima
+        const savedData = allData.find(d => d.email === data.email && d.createdAt === data.createdAt) || data;
+        sendNotification('sendNewPermohonanNotif', { permohonan: savedData });
     } else {
         console.error('❌ Error:', result.error);
         showToast('Gagal menambah permohonan');
@@ -835,6 +1206,7 @@ window.addEventListener('storage', (e) => {
 let allData = DataStore.get();
 let currentConfig = {};
 let isLoggedIn = false;
+let currentCalendarDate = new Date();
 
 
 const defaultConfig = {
@@ -1455,6 +1827,8 @@ function showPage(page) {
         renderPermohonan();
     } else if (page === 'admin') {
         loadAdminData();
+    } else if (page === 'tetapan') {
+        initBackupUI();
     }
 
     if (isLoggedIn) {
@@ -1542,32 +1916,278 @@ function updateDashboard() {
     const permohonan = getPermohonan();
     const peralatan = getPeralatan();
 
-    document.getElementById('stat-total').textContent = permohonan.length;
-    document.getElementById('stat-pending').textContent = permohonan.filter(p => p.status === 'Dalam Proses').length;
-    document.getElementById('stat-approved').textContent = permohonan.filter(p => p.status === 'Diluluskan').length;
-    document.getElementById('stat-peralatan').textContent = peralatan.length;
+    // Update Basic Stats
+    const statTotal = document.getElementById('stat-total');
+    const statPending = document.getElementById('stat-pending');
+    const statApproved = document.getElementById('stat-approved');
+    const statPeralatan = document.getElementById('stat-peralatan');
+
+    if (statTotal) statTotal.textContent = permohonan.length;
+    if (statPending) statPending.textContent = permohonan.filter(p => p.status === 'Dalam Proses').length;
+    if (statApproved) statApproved.textContent = permohonan.filter(p => p.status === 'Diluluskan').length;
+    if (statPeralatan) statPeralatan.textContent = peralatan.length;
+
+    // Update Big Clock & Date in Dashboard
+    const bigClock = document.getElementById('dash-clock-big');
+    const bigDate = document.getElementById('dash-date-big');
+    if (bigClock && bigDate) {
+        const now = new Date();
+        bigClock.textContent = now.toLocaleTimeString('ms-MY', { hour12: false });
+        bigDate.textContent = now.toLocaleDateString('ms-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    }
 
     const recentContainer = document.getElementById('recent-applications');
-    const recent = permohonan.slice(-5).reverse();
-
-    if (recent.length === 0) {
-        recentContainer.innerHTML = '<p class="text-slate-400 text-center py-8">Tiada permohonan terkini</p>';
-    } else {
-        recentContainer.innerHTML = recent.map(p => `
-          <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
-            <div class="flex items-center gap-4">
-              <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-semibold">
-                ${p.nama ? p.nama.charAt(0).toUpperCase() : 'U'}
+    if (recentContainer) {
+        const recent = permohonan.slice(-5).reverse();
+        if (recent.length === 0) {
+            recentContainer.innerHTML = '<p class="text-slate-400 text-center py-8">Tiada permohonan terkini</p>';
+        } else {
+            recentContainer.innerHTML = recent.map(p => `
+              <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+                <div class="flex items-center gap-4">
+                  <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-semibold">
+                    ${p.nama ? p.nama.charAt(0).toUpperCase() : 'U'}
+                  </div>
+                  <div>
+                    <p class="font-medium text-slate-800 leading-tight">${p.nama || 'Tidak diketahui'}</p>
+                    <div class="flex items-center gap-2 mt-0.5">
+                        <p class="text-[10px] text-indigo-600 font-black uppercase tracking-tighter">${p.noPermohonan || '-'}</p>
+                        <span class="text-[8px] text-slate-300">•</span>
+                        <p class="text-[10px] text-slate-500 font-bold uppercase truncate max-w-[120px]">${p.cawangan || '-'}</p>
+                    </div>
+                  </div>
+                </div>
+                <span class="status-badge ${getStatusClass(p.status)}">${p.status || 'Dalam Proses'}</span>
               </div>
-              <div>
-                <p class="font-medium text-slate-800">${p.nama || 'Tidak diketahui'}</p>
-                <p class="text-sm text-slate-500">${p.cawangan || '-'}</p>
-              </div>
-            </div>
-            <span class="status-badge ${getStatusClass(p.status)}">${p.status || 'Dalam Proses'}</span>
-          </div>
-        `).join('');
+            `).join('');
+        }
     }
+
+    // Refresh Calendar
+    renderCalendar();
+}
+
+/**
+ * CALENDAR LOGIC
+ */
+function changeCalendarMonth(offset) {
+    currentCalendarDate.setMonth(currentCalendarDate.getMonth() + offset);
+    renderCalendar();
+}
+
+function renderCalendar() {
+    const grid = document.getElementById('calendar-grid');
+    const monthYearLabel = document.getElementById('calendar-month-year');
+    if (!grid || !monthYearLabel) return;
+
+    const year = currentCalendarDate.getFullYear();
+    const month = currentCalendarDate.getMonth();
+
+    const monthNames = ["Januari", "Februari", "Mac", "April", "Mei", "Jun", "Julai", "Ogos", "September", "Oktober", "November", "Disember"];
+    monthYearLabel.textContent = `${monthNames[month]} ${year}`;
+
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const prevDaysInMonth = new Date(year, month, 0).getDate();
+
+    const today = new Date();
+    const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
+
+    const permohonan = getPermohonan().filter(p =>
+        ['diluluskan', 'dalam proses'].includes((p.status || '').toLowerCase())
+    );
+
+    let html = '';
+
+    // Previous month days
+    for (let i = firstDay; i > 0; i--) {
+        const day = prevDaysInMonth - i + 1;
+        html += `<div class="calendar-day not-current">
+            <span class="calendar-day-num">${day}</span>
+        </div>`;
+    }
+
+    // Current month days
+    for (let day = 1; day <= daysInMonth; day++) {
+        // Safe local date to YYYY-MM-DD string
+        const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+        const isToday = isCurrentMonth && today.getDate() === day;
+
+        // Find events for this day
+        const dayEvents = permohonan.filter(p => {
+            if (!p.tarikhMulaPinjam || !p.tarikhPulang) return false;
+            // Get YYYY-MM-DD from the ISO strings stored in data
+            const start = p.tarikhMulaPinjam.split('T')[0];
+            const end = p.tarikhPulang.split('T')[0];
+            return dateString >= start && dateString <= end;
+        });
+
+        let tagsHtml = '';
+        if (dayEvents.length > 0) {
+            const dewanEvents = dayEvents.filter(p => (p.jenisPermohonan || '').toLowerCase().includes('dewan'));
+            const equipEvents = dayEvents.filter(p => !(p.jenisPermohonan || '').toLowerCase().includes('dewan'));
+
+            const getSpanClass = (p) => {
+                const s = p.tarikhMulaPinjam.split('T')[0];
+                const e = p.tarikhPulang.split('T')[0];
+                if (s === e) return '';
+                if (dateString === s) return 'span-start';
+                if (dateString === e) return 'span-end';
+                return 'span-mid';
+            };
+
+            tagsHtml = `
+                <div class="calendar-day-events z-10 w-full flex flex-col gap-0.5 mt-1">
+                    ${dewanEvents.length > 0 ? `
+                        <div class="flex flex-col gap-0.5">
+                            ${dewanEvents.slice(0, 2).map(p => {
+                const fullNo = p.noPermohonan || '-';
+                return `<span class="event-tag dewan ${getSpanClass(p)}" title="${p.nama}">${fullNo}</span>`;
+            }).join('')}
+                            ${dewanEvents.length > 2 ? `<div class="px-2"><span class="event-tag more text-[7px]">+${dewanEvents.length - 2} lagi</span></div>` : ''}
+                        </div>
+                    ` : ''}
+                    ${equipEvents.length > 0 ? `
+                        <div class="flex flex-col gap-0.5">
+                            ${equipEvents.slice(0, 2).map(p => {
+                const fullNo = p.noPermohonan || '-';
+                return `<span class="event-tag peralatan ${getSpanClass(p)}" title="${p.nama}">${fullNo}</span>`;
+            }).join('')}
+                            ${equipEvents.length > 2 ? `<div class="px-2"><span class="event-tag more text-[7px]">+${equipEvents.length - 2} lagi</span></div>` : ''}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        html += `
+            <div class="calendar-day ${isToday ? 'today' : ''} ${dayEvents.length > 0 ? 'has-event' : ''}">
+                <div class="calendar-day-active-bg"></div>
+                <span class="calendar-day-num z-10">${day}</span>
+                ${tagsHtml}
+                ${dayEvents.length > 0 ? `
+                <div class="calendar-tooltip min-w-[140px] p-3">
+                    <div class="space-y-2">
+                        ${dayEvents.filter(p => (p.jenisPermohonan || '').toLowerCase().includes('dewan')).length > 0 ? `
+                            <div>
+                                <p class="text-[8px] font-black text-indigo-400 uppercase mb-1 flex items-center gap-1">
+                                    <span class="w-1 h-1 bg-indigo-500 rounded-full"></span> DEWAN
+                                </p>
+                                ${dayEvents.filter(p => (p.jenisPermohonan || '').toLowerCase().includes('dewan')).slice(0, 3).map(p => `
+                                    <div class="mb-1">
+                                        <p class="whitespace-nowrap font-bold text-[10px]">• ${p.nama.substring(0, 15)}</p>
+                                        <p class="text-[8px] opacity-70 italic ml-3 truncate max-w-[120px]">${p.tujuan || 'Tiada tujuan'}</p>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                        ${dayEvents.filter(p => !(p.jenisPermohonan || '').toLowerCase().includes('dewan')).length > 0 ? `
+                            <div>
+                                <p class="text-[8px] font-black text-purple-400 uppercase mb-1 flex items-center gap-1">
+                                    <span class="w-1 h-1 bg-purple-500 rounded-full"></span> PERALATAN
+                                </p>
+                                ${dayEvents.filter(p => !(p.jenisPermohonan || '').toLowerCase().includes('dewan')).slice(0, 3).map(p => `
+                                    <div class="mb-1">
+                                        <p class="whitespace-nowrap font-bold text-[10px]">• ${p.nama.substring(0, 15)}</p>
+                                        <p class="text-[8px] opacity-70 italic ml-3 truncate max-w-[120px]">${p.tujuan || 'Tiada tujuan'}</p>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                        ${dayEvents.length > 3 ? `<p class="opacity-70 italic text-[8px] pt-1 border-t border-white/10">+ ${dayEvents.length - 3} lagi...</p>` : ''}
+                    </div>
+                </div>` : ''}
+            </div>
+        `;
+    }
+
+    grid.innerHTML = html;
+
+    // Update today's events list
+    updateCalendarTodayEvents(today);
+
+    // Update Usage Stats (Fake/Calculated based on calendar)
+    updateUsageStats(permohonan, year, month);
+}
+
+function updateCalendarTodayEvents(date) {
+    const container = document.getElementById('calendar-today-events');
+    if (!container) return;
+
+    // Use local components for today's date
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    const dateStr = `${y}-${m}-${d}`;
+
+    const permohonan = getPermohonan().filter(p => {
+        const isApproved = ['diluluskan', 'dalam proses'].includes((p.status || '').toLowerCase());
+        if (!p.tarikhMulaPinjam || !p.tarikhPulang) return false;
+        const start = p.tarikhMulaPinjam.split('T')[0];
+        const end = p.tarikhPulang.split('T')[0];
+        return isApproved && dateStr >= start && dateStr <= end;
+    });
+
+    if (permohonan.length === 0) {
+        container.innerHTML = '<p class="text-xs text-slate-400 text-center py-4 italic">Tiada tempahan hari ini</p>';
+        return;
+    }
+
+    container.innerHTML = permohonan.map(p => `
+        <div class="flex items-center gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-100 hover:border-indigo-200 transition-all cursor-pointer group" onclick="showPage('permohonan'); document.getElementById('permohonan-search').value='${p.noPermohonan || ''}'; applyPermohonanFilter()">
+            <div class="w-1.5 h-10 ${p.jenisPermohonan.toLowerCase().includes('dewan') ? 'bg-indigo-500' : 'bg-purple-500'} rounded-full"></div>
+            <div class="flex-1 min-w-0">
+                <p class="text-xs font-bold text-slate-800 truncate">${p.nama}</p>
+                <p class="text-[9px] text-slate-500 italic truncate mb-1">${p.tujuan || 'Tiada tujuan'}</p>
+                <div class="flex items-center gap-2">
+                    <span class="text-[9px] text-slate-500 font-bold uppercase tracking-tighter">${p.status}</span>
+                    <span class="text-[9px] text-slate-400">•</span>
+                    <span class="text-[9px] text-indigo-600 font-black">${p.noPermohonan || '-'}</span>
+                </div>
+            </div>
+            <div class="text-indigo-400 opacity-0 group-hover:opacity-100 transition-all">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+            </div>
+        </div>
+    `).join('');
+}
+
+function updateUsageStats(permohonan, year, month) {
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    let dewanDays = 0;
+    let equipmentBorrowed = 0;
+
+    const equipmentTotal = getPeralatan().length || 1;
+
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const dayEvents = permohonan.filter(p => {
+            if (!p.tarikhMulaPinjam || !p.tarikhPulang) return false;
+            const start = p.tarikhMulaPinjam.split('T')[0];
+            const end = p.tarikhPulang.split('T')[0];
+            return dateStr >= start && dateStr <= end;
+        });
+
+        if (dayEvents.some(p => (p.jenisPermohonan || '').toLowerCase().includes('dewan'))) dewanDays++;
+        if (dayEvents.some(p => (p.jenisPermohonan || '').toLowerCase().includes('peralatan'))) equipmentBorrowed++;
+    }
+
+    const dewanPercent = Math.round((dewanDays / daysInMonth) * 100);
+    const equipPercent = Math.min(100, Math.round((equipmentBorrowed / daysInMonth) * 100));
+
+    const dewanBar = document.getElementById('usage-bar-dewan');
+    const dewanVal = document.getElementById('usage-percent-dewan');
+    if (dewanBar) dewanBar.style.width = dewanPercent + '%';
+    if (dewanVal) dewanVal.textContent = dewanPercent + '%';
+
+    const equipBar = document.getElementById('usage-bar-peralatan');
+    const equipVal = document.getElementById('usage-percent-peralatan');
+    if (equipBar) equipBar.style.width = equipPercent + '%';
+    if (equipVal) equipVal.textContent = equipPercent + '%';
 }
 
 let lastNotificationCount = 0;
@@ -1656,7 +2276,11 @@ function renderPermohonan() {
 
     let permohonan = getPermohonan();
 
+    // Terkini di atas — sort by createdAt descending
+    permohonan.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+
     const startDate = document.getElementById('filter-permohonan-mula')?.value;
+
     const endDate = document.getElementById('filter-permohonan-akhir')?.value;
 
     if (startDate || endDate) {
@@ -1694,9 +2318,24 @@ function renderPermohonan() {
             itemsDisplay = p.items;
         }
 
+        const isDalamProses = !p.status || p.status === 'Dalam Proses';
+
         return `
-        <tr class="hover:bg-slate-50 transition-colors">
-          <td class="px-6 py-4 text-indigo-900 font-mono text-xs font-bold" data-label="No. Rujukan">${p.noPermohonan || '-'}</td>
+        <tr class="hover:bg-slate-50 transition-colors ${isDalamProses ? 'border-l-4 border-l-amber-400' : ''}"
+             style="${isDalamProses ? 'background:linear-gradient(90deg,#fffbeb 0%,transparent 80px)' : ''}" >
+          <td class="px-6 py-4" data-label="No. Rujukan">
+            <div class="flex flex-col gap-1">
+              <span class="text-indigo-900 font-mono text-xs font-bold">${p.noPermohonan || '-'}</span>
+              ${isDalamProses ? `
+              <span class="inline-flex items-center gap-1 w-fit">
+                <span class="relative flex h-2 w-2">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                </span>
+                <span class="text-[9px] font-black text-amber-600 uppercase tracking-widest">Menunggu</span>
+              </span>` : ''}
+            </div>
+          </td>
           
           <td class="px-6 py-4" data-label="Pemohon">
             <div class="flex items-center gap-3">
@@ -3224,6 +3863,11 @@ document.getElementById('form-tindakan').addEventListener('submit', async (e) =>
 
     const data = allData.find(d => String(d.__backendId) === String(id));
     if (data) {
+        // Simpan nilai LAMA sebelum update untuk perbandingan
+        const oldStatus = data.status;
+        const oldTarikhMula = data.tarikhMulaPinjam;
+        const oldTarikhTamat = data.tarikhPulang;
+
         const updates = {
             status: status,
             catatan: catatan,
@@ -3231,12 +3875,9 @@ document.getElementById('form-tindakan').addEventListener('submit', async (e) =>
             tarikhPulang: newTarikhTamat ? new Date(newTarikhTamat).toISOString() : data.tarikhPulang
         };
 
-        // Check if normalized type includes pperalatan
         const typeNormalized = (data.jenisPermohonan || '').toLowerCase();
         if (typeNormalized.includes('peralatan')) {
             const selectedItems = collectTindakanItems();
-            // console.log('📦 Updating Admin Items:', selectedItems);
-
             updates.itemsData = JSON.stringify(selectedItems);
             updates.items = selectedItems.length > 0
                 ? selectedItems.map(item => `${item.name} (${item.qty} unit)`).join(', ')
@@ -3248,15 +3889,28 @@ document.getElementById('form-tindakan').addEventListener('submit', async (e) =>
             updates.tarikhSelesai = new Date().toISOString();
         }
 
-        // console.log('🚀 Submitting Admin Updates:', updates);
         await DataStore.update(id, updates);
 
         showToast('✅ Berjaya dikemaskini!');
         closeModal('modal-tindakan');
-
         updateDashboard();
         renderPermohonan();
-        renderLaporan(); // Update reports
+        renderLaporan();
+
+        // 📧 Hantar notifikasi email & Telegram kepada user
+        const updatedData = { ...data, ...updates };
+        const statusBerubah = oldStatus !== status;
+        const tarikhMulaBerubah = oldTarikhMula !== updates.tarikhMulaPinjam;
+        const tarikhTamatBerubah = oldTarikhTamat !== updates.tarikhPulang;
+
+        if (statusBerubah || tarikhMulaBerubah || tarikhTamatBerubah) {
+            sendNotification('sendStatusUpdateNotif', {
+                permohonan: updatedData,
+                oldStatus,
+                oldTarikhMula,
+                oldTarikhTamat
+            });
+        }
     } else {
         showToast('❌ Ralat: Data tidak dijumpai');
     }
@@ -5411,16 +6065,19 @@ function startRealtimeSync() {
 
         isSyncing = true;
         try {
-            const result = await fetch(`${GOOGLE_SCRIPT_URL}?action=getAll`).then(r => r.json());
+            const result = await fetch(`${GOOGLE_SCRIPT_URL}?action=getAll&token=${encodeURIComponent(AUTH_TOKEN)}`).then(r => r.json());
 
             if (result.success && result.data) {
-                const currentCount = allData.length;
-                const newCount = result.data.length;
+                const currentCount = allData.filter(d => d.type === 'permohonan' || d.type === 'peralatan' || d.type === 'kategori').length;
+                const newCount = result.data.filter(d => d.type === 'permohonan' || d.type === 'peralatan' || d.type === 'kategori').length;
 
-                if (newCount !== currentCount) {
-                    console.log(`🔔 New update detected! ${currentCount} -> ${newCount}`);
+                // Compare data — check count change OR content hash change
+                const currentHash = JSON.stringify(allData.map(d => d.__backendId + (d.status || '') + (d.nama || '')));
+                const newHash = JSON.stringify(result.data.map(d => d.__backendId + (d.status || '') + (d.nama || '')));
 
+                if (newHash !== currentHash) {
                     const isNewData = newCount > currentCount;
+                    console.log(`🔔 Data change detected! ${currentCount} -> ${newCount} items`);
 
                     localStorage.setItem('dewanData', JSON.stringify(result.data));
                     allData = result.data;
@@ -5565,22 +6222,43 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 1000);
 });
 
-function generateReferenceNo() {
+// Lock global — elak double submit serentak
+let _isSubmittingPermohonan = false;
+
+function generateReferenceNo(excludeNos = []) {
     const now = new Date();
     const currentYear = now.getFullYear();
 
-    const permohonanTahunIni = allData.filter(d => {
-        if (d.type !== 'permohonan' || !d.noPermohonan) return false;
-        const parts = d.noPermohonan.split('-');
-        return parts.length === 3 && parts[2] === currentYear.toString();
+    // Gabung allData + localStorage untuk data paling terkini
+    const localRaw = JSON.parse(localStorage.getItem('dewanData') || '[]');
+    const combined = [...allData];
+    localRaw.forEach(item => {
+        if (!combined.find(d => d.__backendId === item.__backendId)) {
+            combined.push(item);
+        }
     });
 
-    let nextNumber = 1;
-    if (permohonanTahunIni.length > 0) {
-        const lastNo = permohonanTahunIni
+    // Kumpul semua nombor yang sudah digunakan tahun ini
+    const usedNumbers = new Set(
+        combined
+            .filter(d => {
+                if (d.type !== 'permohonan' || !d.noPermohonan) return false;
+                const parts = d.noPermohonan.split('-');
+                return parts.length === 3 && parts[2] === currentYear.toString();
+            })
             .map(d => parseInt(d.noPermohonan.split('-')[1]) || 0)
-            .reduce((max, val) => Math.max(max, val), 0);
-        nextNumber = lastNo + 1;
+    );
+
+    // Tambah juga mana-mana nombor yang sedang 'dipesan' oleh submit lain (kembar)
+    excludeNos.forEach(no => {
+        const parts = (no || '').split('-');
+        if (parts.length === 3) usedNumbers.add(parseInt(parts[1]) || 0);
+    });
+
+    // Cari nombor seterusnya yang belum digunakan
+    let nextNumber = 1;
+    while (usedNumbers.has(nextNumber)) {
+        nextNumber++;
     }
 
     const paddedNo = nextNumber.toString().padStart(3, '0');
@@ -5599,7 +6277,14 @@ function attachUserFormHandler() {
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
 
-        const btn = document.getElementById('btn-submit-user-permohonan'); // Ensure ID matches your HTML button
+        // 🔒 LAPISAN 1: Global lock — elak double submit
+        if (_isSubmittingPermohonan) {
+            console.warn('⚠️ Submission already in progress, ignoring duplicate submit');
+            return;
+        }
+        _isSubmittingPermohonan = true;
+
+        const btn = document.getElementById('btn-submit-user-permohonan');
         const submitBtn = btn || form.querySelector('button[type="submit"]');
 
         const originalText = submitBtn ? submitBtn.innerHTML : 'Hantar';
@@ -5609,13 +6294,13 @@ function attachUserFormHandler() {
         }
 
         try {
-            const id = Date.now().toString();
-            const noPermohonan = generateReferenceNo();
+            // 🔒 ID unik dengan timestamp + random
+            const id = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
             const permohonan = {
                 type: 'permohonan',
                 __backendId: id,
-                noPermohonan: noPermohonan,
+                noPermohonan: 'PENDING',   // pelayan akan gantikan dengan nombor sebenar
                 nama: document.getElementById('user-nama-pemohon').value,
                 email: document.getElementById('user-email-pemohon').value,
                 nomorTelefon: document.getElementById('user-nombor-telefon').value,
@@ -5630,24 +6315,43 @@ function attachUserFormHandler() {
                 createdAt: new Date().toISOString()
             };
 
-            console.log('🚀 Submitting User Permohonan:', permohonan);
+            console.log('🚀 Submitting User Permohonan (noPermohonan akan dijana oleh pelayan)');
 
-            await DataStore.add(permohonan);
+            const result = await DataStore.add(permohonan);
+
+            // Dapatkan noPermohonan sebenar dari respons server
+            // Jika server kembalikan nombor → guna itu. Jika offline → jana tempatan (fallback)
+            let noPermohonan = result?.noPermohonan && result.noPermohonan !== 'PENDING'
+                ? result.noPermohonan
+                : generateReferenceNo();
+
+            // Kemaskini allData dengan noPermohonan sebenar
+            const savedItem = allData.find(d => d.__backendId === id);
+            if (savedItem) savedItem.noPermohonan = noPermohonan;
+
+            console.log(`✅ noPermohonan: ${noPermohonan}`);
+
+            // 📧 Notifikasi email & Telegram — permohonan baru dari user
+            sendNotification('sendNewPermohonanNotif', { permohonan: { ...permohonan, noPermohonan } });
 
             form.classList.add('hidden');
             const successContainer = document.getElementById('user-success-container');
-            if (successContainer) {
-                successContainer.classList.remove('hidden');
+            const loadingPhase = document.getElementById('success-loading-phase');
+            const donePhase = document.getElementById('success-done-phase');
+            const refEl = document.getElementById('success-no-permohonan');
 
-                const refEl = document.getElementById('success-no-permohonan');
-                if (refEl) {
-                    refEl.textContent = noPermohonan;
-                } else {
-                    const p = document.createElement('p');
-                    p.innerHTML = `<br>No. Rujukan: <strong class="text-2xl text-indigo-600">${noPermohonan}</strong>`;
-                    const btnContainer = successContainer.querySelector('div.mt-10') || successContainer.lastElementChild;
-                    successContainer.insertBefore(p, btnContainer);
-                }
+            if (successContainer) {
+                // Tunjuk loading phase dulu
+                successContainer.classList.remove('hidden');
+                if (loadingPhase) loadingPhase.classList.remove('hidden');
+                if (donePhase) donePhase.classList.add('hidden');
+
+                // Sedikit animasi peralihan ke done phase
+                setTimeout(() => {
+                    if (loadingPhase) loadingPhase.classList.add('hidden');
+                    if (donePhase) donePhase.classList.remove('hidden');
+                    if (refEl) refEl.textContent = noPermohonan || '—';
+                }, 500); // 0.5 saat selepas dapat respons server
             }
 
             form.reset();
@@ -5656,10 +6360,14 @@ function attachUserFormHandler() {
             console.error('Submit Error:', error);
             showToast('❌ Gagal menghantar permohonan. Sila cuba lagi.');
         } finally {
-            if (submitBtn) {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalText;
-            }
+            // Lepaskan lock selepas 3 saat (elak stuck jika error)
+            setTimeout(() => {
+                _isSubmittingPermohonan = false;
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                }
+            }, 3000);
         }
     });
 }
