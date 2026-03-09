@@ -58,8 +58,12 @@ if (document.readyState === 'loading') {
 }
 
 
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzwlAUTh8hSuYrMQcFDApU5mUB-s3Tq2fL8BwYT0ME4yiMRVBb_n3eePkjvyW5VpdFB7g/exec';
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzIoeFt51OX1XumfDIfEpPRpt86_C9AKx4QUXgkc0bZ_FeISDedo_nrDeYvEvWTb751qw/exec';
 const AUTH_TOKEN = 'CInta_Mtaa2026_diRkhsg';
+
+// KONFIGURASI TELEGRAM DEFAULT
+const TELEGRAM_BOT_TOKEN = '8388176622:AAFRP8TGtNgkNFu5FuTa7QUJ8zsLO9kAyHI';
+const TELEGRAM_CHAT_ID = '272332252';
 
 const GoogleSheetsDB = {
     isConfigured: function () {
@@ -205,6 +209,21 @@ const GoogleSheetsDB = {
             return { success: true, count: result.data.length };
         }
         return { success: false };
+    },
+
+    syncAdminsToSheets: async function (adminList) {
+        if (!this.isConfigured()) return { success: false };
+        try {
+            const response = await fetch(GOOGLE_SCRIPT_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({ action: 'sync', allData: adminList.map(a => ({ ...a, type: 'admins', __backendId: a.uid })), token: AUTH_TOKEN })
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('❌ Sync admins to Sheets failed:', error);
+            return { success: false, error: error.message };
+        }
     }
 };
 
@@ -1391,6 +1410,7 @@ async function autoLoadFromGoogleSheets() {
             applyBgSettings();
             applyLogoSettings();
             if (typeof initBackupUI === 'function') initBackupUI();
+            if (typeof updateSecurityTimers === 'function') updateSecurityTimers();
         } else {
             console.log('ℹ️ No data in Google Sheets or fetch failed, using localStorage');
             applyBgSettings();
@@ -1763,6 +1783,8 @@ function logout() {
     const backupSchedule = localStorage.getItem('backupSchedule');
     const lastBackupTime = localStorage.getItem('lastBackupTime');
     const backupLogs = localStorage.getItem('backupLogs');
+    const portalTelegramBotToken = localStorage.getItem('portalTelegramBotToken');
+    const portalTelegramChatId = localStorage.getItem('portalTelegramChatId');
 
     // Record logout time before clearing data
     try {
@@ -1790,6 +1812,8 @@ function logout() {
     if (backupSchedule) localStorage.setItem('backupSchedule', backupSchedule);
     if (lastBackupTime) localStorage.setItem('lastBackupTime', lastBackupTime);
     if (backupLogs) localStorage.setItem('backupLogs', backupLogs);
+    if (portalTelegramBotToken) localStorage.setItem('portalTelegramBotToken', portalTelegramBotToken);
+    if (portalTelegramChatId) localStorage.setItem('portalTelegramChatId', portalTelegramChatId);
 
     sessionStorage.clear();
 
@@ -5041,18 +5065,55 @@ function updateUserUI(name, email, photoURL = null) {
 
 document.addEventListener('DOMContentLoaded', checkAuth);
 
-let timeoutReminder, autoLogout;
-let timeoutLimit = parseInt(localStorage.getItem('portalAutoLogout')) * 1000 || 30 * 1000; // Default 30s
-let reminderTime = timeoutLimit > 20000 ? timeoutLimit - 10000 : timeoutLimit * 0.7; // Reminder 10s before or 70% of time
+let timeoutReminder, autoLogout, countdownInterval;
+let timeoutLimit = 30 * 1000;
+let reminderTime = 20 * 1000;
+
+function updateSecurityTimers() {
+    // Ambil dari allData (cloud sync) atau localStorage
+    const saved = allData.find(d => d.key === 'portalAutoLogout')?.value || localStorage.getItem('portalAutoLogout');
+    const duration = parseInt(saved) || 30;
+
+    timeoutLimit = duration * 1000;
+
+    // Logik amaran yang lebih adil:
+    // Jika > 2 minit, beri amaran 60s awal
+    // Jika > 1 minit, beri amaran 30s awal
+    // Jika > 30s, beri amaran 10s awal
+    // Jika pendek, guna 70% masa
+    if (timeoutLimit >= 120000) {
+        reminderTime = timeoutLimit - 60000;
+    } else if (timeoutLimit >= 60000) {
+        reminderTime = timeoutLimit - 30000;
+    } else if (timeoutLimit >= 30000) {
+        reminderTime = timeoutLimit - 10000;
+    } else {
+        reminderTime = timeoutLimit * 0.7;
+    }
+}
+
+// Inisialisasi awal
+updateSecurityTimers();
 
 const timeoutReminderDiv = document.createElement('div');
-timeoutReminderDiv.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:rgba(225,29,72,0.95);color:#fff;padding:18px 25px;border-radius:12px;font-weight:700;box-shadow:0 0 15px #e11d48,0 0 25px rgba(225,29,72,0.5);text-align:center;display:none;z-index:9999;';
-timeoutReminderDiv.innerHTML = `⚠️ Sesi anda hampir tamat! <br><span style="font-size:10px; opacity:0.8;">Skrin akan logout sebentar lagi kerana tiada aktiviti.</span> <br> <button id="stayLoggedIn" style="margin-top:10px;padding:8px 16px;border:none;border-radius:10px;background:#fff;color:#e11d48;font-weight:bold;cursor:pointer;box-shadow:0 5px 15px rgba(0,0,0,0.2);">Terus Login</button>`;
+timeoutReminderDiv.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:rgba(225,29,72,0.95);color:#fff;padding:22px 30px;border-radius:16px;font-weight:700;box-shadow:0 10px 40px rgba(225,29,72,0.4);text-align:center;display:none;z-index:9999;border:2px solid rgba(255,255,255,0.2);backdrop-filter:blur(10px);min-width:300px;';
+timeoutReminderDiv.innerHTML = `
+    <div class="flex flex-col items-center gap-2">
+        <svg class="w-8 h-8 mb-1 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+        <p class="text-lg">Sesi Anda Hampir Tamat!</p>
+        <p class="text-sm font-normal opacity-90">Sistem akan logout secara automatik dalam masa:</p>
+        <p id="timeout-countdown" class="text-3xl font-black my-2">--s</p>
+        <button id="stayLoggedIn" class="mt-2 w-full py-3 bg-white text-rose-600 rounded-xl font-black hover:bg-rose-50 transition-all shadow-lg active:scale-95">TERUS KEKAL DALAM PORTAL</button>
+    </div>
+`;
 document.body.appendChild(timeoutReminderDiv);
 
 function resetIdleTimer() {
     clearTimeout(timeoutReminder);
     clearTimeout(autoLogout);
+    clearInterval(countdownInterval);
     timeoutReminderDiv.style.display = 'none';
     startIdleTimer();
 }
@@ -5060,12 +5121,16 @@ function resetIdleTimer() {
 function startIdleTimer() {
     if (sessionStorage.getItem('loggedIn') !== 'true') return;
 
-    // Don't auto-logout if user-form is open
+    // Jangan logout jika sedang isi borang (sebagai safety)
     const modalUser = document.getElementById('modal-user-form');
     if (modalUser && !modalUser.classList.contains('hidden')) return;
 
+    // Pastikan masa sentiasa dikemaskini sebelum timer bermula
+    updateSecurityTimers();
+
     timeoutReminder = setTimeout(() => {
         timeoutReminderDiv.style.display = 'block';
+        startCountdown();
     }, reminderTime);
 
     autoLogout = setTimeout(() => {
@@ -5073,6 +5138,22 @@ function startIdleTimer() {
         localStorage.removeItem("isLoggedIn");
         window.location.href = "index.html";
     }, timeoutLimit);
+}
+
+function startCountdown() {
+    let timeLeft = Math.round((timeoutLimit - reminderTime) / 1000);
+    const countdownEl = document.getElementById('timeout-countdown');
+
+    if (countdownEl) countdownEl.textContent = `${timeLeft}s`;
+
+    clearInterval(countdownInterval);
+    countdownInterval = setInterval(() => {
+        timeLeft--;
+        if (countdownEl) countdownEl.textContent = `${timeLeft}s`;
+        if (timeLeft <= 0) {
+            clearInterval(countdownInterval);
+        }
+    }, 1000);
 }
 
 ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(evt => {
@@ -5222,6 +5303,11 @@ window.loadAdminData = async function () {
             adminList.push({ uid: doc.id, ...doc.data() });
         });
         renderAdminTable(adminList);
+
+        // Automatik sinkron ke Google Sheets untuk kegunaan Bot Telegram
+        if (typeof CloudSync !== 'undefined' && CloudSync.isConfigured()) {
+            CloudSync.syncAdminsToSheets(adminList);
+        }
     } catch (error) {
         console.error("❌ Gagal memuatkan data admin:", error);
     }
@@ -5251,6 +5337,9 @@ function renderAdminTable(admins) {
                 <td class="px-6 py-4 text-left" data-label="Peranan">
                     <span class="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-xs font-bold">${admin.role || 'Staff'}</span>
                 </td>
+                <td class="px-6 py-4 text-center text-slate-600 font-mono text-[11px]" data-label="Telegram ID">
+                    ${admin.telegramId || '<span class="text-slate-300">-</span>'}
+                </td>
                 <td class="px-6 py-4 text-center" data-label="Daftar Masuk">
                     <div class="flex flex-col items-center">
                         <span class="text-[11px] font-bold text-slate-700">${admin.lastLogin ? formatDate(admin.lastLogin) : '<span class="text-slate-300 font-normal italic">Belum Pernah</span>'}</span>
@@ -5274,7 +5363,7 @@ function renderAdminTable(admins) {
                 </td>
                 <td class="px-6 py-4" data-label="Tindakan">
                     <div class="flex items-center justify-center gap-2">
-                        <button onclick="editAdminName('${admin.uid}', '${admin.name || ''}')" class="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Edit Nama">
+                        <button onclick="editAdminProfile('${admin.uid}', '${admin.name || ''}', '${admin.telegramId || ''}', '${admin.role || ''}')" class="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Edit Profil">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                             </svg>
@@ -5308,6 +5397,7 @@ if (addAdminForm) {
         const email = document.getElementById("admin-email").value.trim();
         const role = document.getElementById("admin-role").value;
         const password = document.getElementById("admin-password").value;
+        const telegramId = document.getElementById("admin-telegram").value.trim();
 
         const emailErr = document.getElementById("admin-email-error");
         const passErr = document.getElementById("admin-password-error");
@@ -5351,6 +5441,7 @@ if (addAdminForm) {
                 name,
                 email,
                 role,
+                telegramId,
                 status: 'Aktif',
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
@@ -5402,19 +5493,45 @@ window.deleteAdmin = async function (uid) {
     }
 };
 
-window.editAdminName = async function (uid, oldName) {
+window.editAdminProfile = async function (uid, oldName, oldTgId, oldRole) {
     const newName = prompt("Kemaskini Nama Pentadbir:", oldName);
-    if (newName === null || newName.trim() === "" || newName === oldName) return;
+    if (newName === null) return;
+
+    const newTgId = prompt("Kemaskini Telegram Chat ID (Kosongkan jika tiada):", oldTgId);
+    if (newTgId === null) return;
+
+    let newRole = oldRole;
+    const currentUser = JSON.parse(sessionStorage.getItem("currentUser") || "{}");
+    const isSelf = currentUser.uid === uid;
+
+    if (isSelf) {
+        // console.log("Self-edit: Role preservation suggested for security.");
+    } else {
+        const rolePrompt = prompt("Kemaskini Peranan (Super Admin / Staff / Pentadbir):", oldRole);
+        if (rolePrompt !== null) {
+            const validRoles = ["Super Admin", "Staff", "Pentadbir"];
+            if (validRoles.includes(rolePrompt)) {
+                newRole = rolePrompt;
+            } else if (rolePrompt.trim() !== "") {
+                alert("Peranan tidak sah! Sila pilih antara: Super Admin, Staff, atau Pentadbir.");
+                return;
+            }
+        }
+    }
+
+    if (newName.trim() === oldName && newTgId.trim() === oldTgId && newRole === oldRole) return;
 
     try {
         await window.db.collection("users").doc(uid).update({
             name: newName.trim(),
+            telegramId: newTgId.trim(),
+            role: newRole,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-        showToast("✅ Nama pentadbir dikemaskini");
+        showToast("✅ Profil pentadbir dikemaskini");
         loadAdminData();
     } catch (error) {
-        alert("Gagal kemaskini nama: " + error.message);
+        alert("Gagal kemaskini profil: " + error.message);
     }
 };
 
@@ -6217,6 +6334,15 @@ async function saveSoundSettings() {
     showToast('✅ Tetapan bunyi disimpan (Online Sync)!');
 }
 
+async function saveTelegramSettings() {
+    const chatId = document.getElementById('tg-chat-id').value.trim();
+
+    localStorage.setItem('portalTelegramChatId', chatId);
+    await savePortalSetting('portalTelegramChatId', chatId);
+
+    showToast('✅ Tetapan Telegram (Chat ID) disimpan!');
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const soundChoice = document.getElementById('sound-choice');
     if (soundChoice) {
@@ -6246,6 +6372,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const savedUrl = allData.find(d => d.key === 'portalCustomSoundUrl')?.value || localStorage.getItem('portalCustomSoundUrl');
         if (savedUrl && document.getElementById('custom-sound-url')) {
             document.getElementById('custom-sound-url').value = savedUrl;
+        }
+
+        // Load Telegram Settings
+
+        const savedTgChatId = allData.find(d => d.key === 'portalTelegramChatId')?.value || localStorage.getItem('portalTelegramChatId');
+        if (savedTgChatId && document.getElementById('tg-chat-id')) {
+            document.getElementById('tg-chat-id').value = savedTgChatId;
         }
     }, 1000);
 });
