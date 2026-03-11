@@ -58,7 +58,7 @@ if (document.readyState === 'loading') {
 }
 
 
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzIoeFt51OX1XumfDIfEpPRpt86_C9AKx4QUXgkc0bZ_FeISDedo_nrDeYvEvWTb751qw/exec';
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzQRsEvyxVxGAhN4ewkOslojCfIs5bH6SJnH0mXrpS4rFlTYjN7HAM0yO53oF8Agy56KQ/exec';
 const AUTH_TOKEN = 'CInta_Mtaa2026_diRkhsg';
 
 // KONFIGURASI TELEGRAM DEFAULT
@@ -6330,17 +6330,76 @@ async function saveSoundSettings() {
     await savePortalSetting('portalSoundChoice', choice);
     await savePortalSetting('portalSoundVolume', volume);
     await savePortalSetting('portalCustomSoundUrl', customUrl);
-
     showToast('✅ Tetapan bunyi disimpan (Online Sync)!');
 }
 
 async function saveTelegramSettings() {
-    const chatId = document.getElementById('tg-chat-id').value.trim();
+    const elChatId = document.getElementById('tg-chat-id');
+    const elBotToken = document.getElementById('tg-bot-token');
+    const elGroupLink = document.getElementById('tg-group-link');
+
+    if (!elChatId || !elBotToken) {
+        showToast('⚠️ Elemen UI Telegram tidak dijumpai!', 'error');
+        return;
+    }
+
+    const chatId = elChatId.value.trim();
+    const botToken = elBotToken.value.trim();
+    const groupLink = elGroupLink ? elGroupLink.value.trim() : '';
 
     localStorage.setItem('portalTelegramChatId', chatId);
-    await savePortalSetting('portalTelegramChatId', chatId);
+    localStorage.setItem('portalTelegramBotToken', botToken);
+    localStorage.setItem('portalTelegramGroupLink', groupLink);
 
-    showToast('✅ Tetapan Telegram (Chat ID) disimpan!');
+    await savePortalSetting('portalTelegramChatId', chatId);
+    await savePortalSetting('portalTelegramBotToken', botToken);
+    await savePortalSetting('portalTelegramGroupLink', groupLink);
+
+    showToast('✅ Tetapan Telegram disimpan!');
+}
+
+async function testTelegramNow() {
+    const elBotToken = document.getElementById('tg-bot-token');
+    const elChatId = document.getElementById('tg-chat-id');
+
+    if (!elBotToken || !elChatId) return;
+
+    const botToken = elBotToken.value.trim();
+    const chatId = elChatId.value.trim();
+
+    if (!botToken || !chatId) {
+        showToast('⚠️ Sila masukkan Bot Token dan Chat ID dahulu!', 'warning');
+        return;
+    }
+
+    showToast('📡 Menghantar mesej percubaan...');
+
+    // Kita hantar terus ke API Telegram untuk test
+    const allIds = chatId.split(',').map(id => id.trim());
+    let successCount = 0;
+
+    for (const id of allIds) {
+        try {
+            const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chat_id: id,
+                    text: `🚀 *UJIAN NOTIFIKASI PORTAL*\n\nTahniah! Bot anda telah berjaya disambungkan ke ID ini.\n\n📍 *Lokasi:* ${window.location.hostname}\n⏰ *Masa:* ${new Date().toLocaleString('ms-MY')}`,
+                    parse_mode: 'Markdown'
+                })
+            });
+            if (res.ok) successCount++;
+        } catch (e) {
+            console.error('Test Telegram Error:', e);
+        }
+    }
+
+    if (successCount > 0) {
+        showToast(`✅ Berjaya hantar ke ${successCount} destinasi!`);
+    } else {
+        showToast('❌ Gagal hantar. Sila semak Token & ID.', 'error');
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -6375,10 +6434,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Load Telegram Settings
+        const defaultTgChatId = "272332252, 76619017, -100383294630, -3832946303";
+        const defaultTgBotToken = "8388176622:AAFRP8TGtNgkNFu5FuTa7QUJ8zsLO9kAyHI";
+        const defaultTgGroupLink = "https://web.telegram.org/k/#-3832946303";
 
-        const savedTgChatId = allData.find(d => d.key === 'portalTelegramChatId')?.value || localStorage.getItem('portalTelegramChatId');
-        if (savedTgChatId && document.getElementById('tg-chat-id')) {
-            document.getElementById('tg-chat-id').value = savedTgChatId;
+        const savedTgChatId = allData.find(d => d.key === 'portalTelegramChatId')?.value || localStorage.getItem('portalTelegramChatId') || defaultTgChatId;
+        const elChatId = document.getElementById('tg-chat-id');
+        if (elChatId) {
+            elChatId.value = savedTgChatId;
+        }
+
+        const savedTgBotToken = allData.find(d => d.key === 'portalTelegramBotToken')?.value || localStorage.getItem('portalTelegramBotToken') || defaultTgBotToken;
+        const elBotToken = document.getElementById('tg-bot-token');
+        if (elBotToken) {
+            elBotToken.value = savedTgBotToken;
+        }
+
+        const savedTgGroupLink = allData.find(d => d.key === 'portalTelegramGroupLink')?.value || localStorage.getItem('portalTelegramGroupLink') || defaultTgGroupLink;
+        const elGroupLink = document.getElementById('tg-group-link');
+        if (elGroupLink) {
+            elGroupLink.value = savedTgGroupLink;
         }
     }, 1000);
 });
