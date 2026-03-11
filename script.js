@@ -63,7 +63,7 @@ const AUTH_TOKEN = 'CInta_Mtaa2026_diRkhsg';
 
 // KONFIGURASI TELEGRAM DEFAULT
 const TELEGRAM_BOT_TOKEN = '8388176622:AAFRP8TGtNgkNFu5FuTa7QUJ8zsLO9kAyHI';
-const TELEGRAM_CHAT_ID = '272332252';
+const TELEGRAM_CHAT_ID = '76619017';
 
 const GoogleSheetsDB = {
     isConfigured: function () {
