@@ -58,7 +58,7 @@ if (document.readyState === 'loading') {
 }
 
 
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbycVgETEzVC4aD4KJwywMC_S2W_1wqIBGH1EQh19o3jcMZ1jZEL9kQQwCK4KN10I2-aQQ/exec';
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwx6q3UNO5Ha7eHxpfsHK5TXmNN-E8-aQLFr8LvFTmHBrTSotnyEGuWBGucXgYwTou-QA/exec';
 const AUTH_TOKEN = 'CInta_Mtaa2026_diRkhsg';
 
 // KONFIGURASI TELEGRAM DEFAULT
@@ -875,10 +875,10 @@ async function sendNotification(action, payload) {
     try {
         await fetch(GOOGLE_SCRIPT_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'text/plain' },
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
             body: JSON.stringify({ ...payload, action, token: AUTH_TOKEN })
         });
-        console.log(`📧 Notification sent: ${action}`);
+        console.log(`Notification sent: ${action}`);
     } catch (err) {
         console.warn('⚠️ Notification failed (non-critical):', err.message);
     }
@@ -3863,21 +3863,18 @@ function markAsCompleted() {
         return;
     }
 
-    if (!data.statusSelesai) {
-        data.statusSelesai = true;
-        data.tarikhSelesai = new Date().toISOString();
-        data.status = 'Selesai';
-        DataStore.save(allData);
-        showToast('✅ Tarikh selesai telah direkodkan!');
-    } else {
-        showToast('⚠️ Tarikh selesai sudah direkodkan sebelumnya');
-    }
-
-    document.getElementById('tarikh-selesai').value = formatDate(data.tarikhSelesai);
+    // Hanya kemaskini UI modal. Data sebenar akan disimpan apabila klik "Simpan"
+    // Ini memastikan statusBerubah dikesan dalam submit handler untuk hantar notifikasi.
+    const now = new Date().toISOString();
+    document.getElementById('tarikh-selesai').value = formatDate(now);
     document.getElementById('status-permohonan').value = 'Selesai';
+
+    showToast('✅ Status ditukar ke Selesai. Klik Simpan untuk hantar notifikasi.');
 }
 
+let isProcessingSelesai = false;
 function quickMarkCompleted(id) {
+    if (isProcessingSelesai) return;
     const data = allData.find(d => String(d.__backendId) === String(id));
 
     if (!data) {
@@ -3885,14 +3882,32 @@ function quickMarkCompleted(id) {
         return;
     }
 
-    if (!data.statusSelesai) {
-        data.statusSelesai = true;
-        data.tarikhSelesai = new Date().toISOString();
-        data.status = 'Selesai';
-        DataStore.save(allData);
-        showToast('✅ Permohonan ditandai selesai!');
-        renderPermohonan();
-        renderLaporanDewanTable(getPermohonan()); // Update laporan
+    if (data.status !== 'Selesai') {
+        isProcessingSelesai = true;
+        const oldStatus = data.status;
+        const updates = {
+            status: 'Selesai',
+            statusSelesai: true,
+            tarikhSelesai: new Date().toISOString()
+        };
+
+        DataStore.update(id, updates).then(() => {
+            showToast('✅ Permohonan ditandai selesai!');
+            renderPermohonan();
+            renderLaporanDewanTable(getPermohonan());
+
+            // 📧 Hantar notifikasi terus
+            console.log(`🚀 Sending Selesai notification for ${id}`);
+            sendNotification('sendStatusUpdateNotif', {
+                permohonan: { ...data, ...updates },
+                oldStatus: oldStatus
+            }).finally(() => {
+                isProcessingSelesai = false;
+            });
+        }).catch(err => {
+            console.error('❌ quickMarkCompleted error:', err);
+            isProcessingSelesai = false;
+        });
     } else {
         showToast('⚠️ Permohonan sudah ditandai selesai sebelumnya');
     }
@@ -3900,6 +3915,9 @@ function quickMarkCompleted(id) {
 
 document.getElementById('form-tindakan').addEventListener('submit', async (e) => {
     e.preventDefault();
+    const btnSubmit = e.target.querySelector('button[type="submit"]');
+    if (btnSubmit && btnSubmit.disabled) return;
+
     const id = document.getElementById('tindakan-id').value;
     const status = document.getElementById('status-permohonan').value;
     const catatan = document.getElementById('catatan-admin').value;
@@ -3909,6 +3927,11 @@ document.getElementById('form-tindakan').addEventListener('submit', async (e) =>
 
     const data = allData.find(d => String(d.__backendId) === String(id));
     if (data) {
+        if (btnSubmit) {
+            btnSubmit.disabled = true;
+            btnSubmit.innerHTML = '🕒 Menyimpan...';
+        }
+
         // Simpan nilai LAMA sebelum update untuk perbandingan
         const oldStatus = data.status;
         const oldTarikhMula = data.tarikhMulaPinjam;
@@ -3935,27 +3958,38 @@ document.getElementById('form-tindakan').addEventListener('submit', async (e) =>
             updates.tarikhSelesai = new Date().toISOString();
         }
 
-        await DataStore.update(id, updates);
+        try {
+            await DataStore.update(id, updates);
 
-        showToast('✅ Berjaya dikemaskini!');
-        closeModal('modal-tindakan');
-        updateDashboard();
-        renderPermohonan();
-        renderLaporan();
+            showToast('✅ Berjaya dikemaskini!');
+            closeModal('modal-tindakan');
+            updateDashboard();
+            renderPermohonan();
+            renderLaporan();
 
-        // 📧 Hantar notifikasi email & Telegram kepada user
-        const updatedData = { ...data, ...updates };
-        const statusBerubah = oldStatus !== status;
-        const tarikhMulaBerubah = oldTarikhMula !== updates.tarikhMulaPinjam;
-        const tarikhTamatBerubah = oldTarikhTamat !== updates.tarikhPulang;
+            // 📧 Hantar notifikasi email & Telegram
+            const updatedData = { ...data, ...updates };
+            const statusBerubah = oldStatus !== status;
+            const tarikhMulaBerubah = oldTarikhMula !== updates.tarikhMulaPinjam;
+            const tarikhTamatBerubah = oldTarikhTamat !== updates.tarikhPulang;
 
-        if (statusBerubah || tarikhMulaBerubah || tarikhTamatBerubah) {
-            sendNotification('sendStatusUpdateNotif', {
-                permohonan: updatedData,
-                oldStatus,
-                oldTarikhMula,
-                oldTarikhTamat
-            });
+            if (statusBerubah || tarikhMulaBerubah || tarikhTamatBerubah) {
+                console.log(`🚀 Sending status update notification - Action: ${status}`);
+                await sendNotification('sendStatusUpdateNotif', {
+                    permohonan: updatedData,
+                    oldStatus,
+                    oldTarikhMula,
+                    oldTarikhTamat
+                });
+            }
+        } catch (err) {
+            console.error('❌ Submit error:', err);
+            showToast('❌ Ralat semasa menyimpan data');
+        } finally {
+            if (btnSubmit) {
+                btnSubmit.disabled = false;
+                btnSubmit.innerHTML = 'Simpan Perubahan';
+            }
         }
     } else {
         showToast('❌ Ralat: Data tidak dijumpai');
