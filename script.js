@@ -58,11 +58,11 @@ if (document.readyState === 'loading') {
 }
 
 
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbypvBgl-z7HoBVsW_VoaM4WwKrMyhpPyaito_J2nBDu1PoS9ILyqI8fAdMX6u2kNkipSg/exec';
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbycVgETEzVC4aD4KJwywMC_S2W_1wqIBGH1EQh19o3jcMZ1jZEL9kQQwCK4KN10I2-aQQ/exec';
 const AUTH_TOKEN = 'CInta_Mtaa2026_diRkhsg';
 
 // KONFIGURASI TELEGRAM DEFAULT
-const TELEGRAM_BOT_TOKEN = '8336824895:AAGtAJRVGXbNEH05lczTf2N9UKZovXbqigw';
+const TELEGRAM_BOT_TOKEN = '8275262674:AAHGj-TB36y-2hi3CWcaO7ALPSfQZNRC4B4';
 const TELEGRAM_CHAT_ID = '76619017';
 
 const GoogleSheetsDB = {
